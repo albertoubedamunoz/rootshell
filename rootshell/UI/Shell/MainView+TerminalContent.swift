@@ -1251,7 +1251,11 @@ extension MainView {
                     .opacity(visualMetrics.opacity)
                     .offset(x: visualMetrics.offsetX)
                     .zIndex(visualMetrics.zIndex)
-                    .allowsHitTesting(layer == .content && index == selectedTabIndex
+                    // Disabling interaction resigns a first responder inside, so the
+                    // outgoing tab keeps it until the incoming pane (a herdr or tmux
+                    // attach not yet in the window) can take the keyboard over.
+                    .allowsHitTesting(layer == .content
+                        && (index == selectedTabIndex || tab.focusedPane?.isFirstResponder == true)
                         && (appTabSwipeState == nil || tab.id == appTabSwipeState?.sourceTabID))
                     .padding(.bottom, bottomPadding)
                     // The safe-area escape moved up to the reader in

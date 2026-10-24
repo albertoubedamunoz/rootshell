@@ -3,7 +3,7 @@ import UIKit
 
 /// Keeps UIKit's input region self-sizing, including while content floats in
 /// the app window. Only the ordinary content view may move between containers.
-final class TerminalTouchKeyboardInputView: UIInputView {
+final class TerminalTouchKeyboardInputView: UIInputView, UIGestureRecognizerDelegate {
     private let keyboard: TerminalTouchKeyboardView
     var hostSize: (() -> CGSize)?
     var shouldHideAfterDocking: (() -> Bool)?
@@ -12,7 +12,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     var onAppearanceChanged: (() -> Void)?
     var onNativePlacementChanged: ((TerminalTouchKeyboardModel.Placement) -> Void)?
     private(set) var isNativeFloating = false
-    private var suppressed = false
+    private(set) var suppressed = false
     private var awaitingFloatingLayout = false
     /// A hardware keyboard minimized the floating card into a full-width
     /// strip. UIKit restores the floating container on disconnect; until
@@ -23,48 +23,37 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     /// we saw so the first disconnect can hold the keys back too.
     private static let lastNativeFloatingKey = "terminalTouchKeyboardLastNativeFloating"
     private var hasObservedNativeLayout = false
+    /// A hold ran out on a full-width host, so that host is a real dock.
+    private var floatingHoldExpired = false
     private var transitionFallback: DispatchWorkItem?
     private var transitionTask: Task<Void, Never>?
     private var heightConstraint: NSLayoutConstraint!
     private let floatingPanel = TerminalTouchKeyboardFloatingPanel()
-    private var ownsFloatingDragCallbacks = false
-    private var floatingPositionUpdateScheduled = false
+    /// Swallows taps on UIKit's handle: its tap opens a mode menu whose one entry
+    /// only resets the position. UIKit's drag waits on its own tap, so that stays enabled.
+    private lazy var handleTapGuard: UITapGestureRecognizer = {
+        let tap = UITapGestureRecognizer()
+        tap.delegate = self
+        return tap
+    }()
     private var hostingGeneration = 0
-    private var restoredFloatingPosition: (origin: CGPoint, screen: UIScreen)?
-    private var floatingPositionDisplayLink: CADisplayLink?
-
-    @MainActor
-    private final class FloatingPositionObserver: NSObject {
-        weak var input: TerminalTouchKeyboardInputView?
-
-        @objc func update(_ link: CADisplayLink) {
-            guard let input else {
-                link.invalidate()
-                return
-            }
-            input.maintainFloatingPosition()
-        }
-    }
-
-    var floatingPosition: (origin: CGPoint, screen: UIScreen)? {
-        if keyboard.usesSystemPlacement, isNativeFloating, !suppressed { floatingPanel.preservePosition() }
-        return restoredFloatingPosition ?? floatingPanel.savedPosition
-    }
-
-    func restoreFloatingPosition(_ position: (origin: CGPoint, screen: UIScreen)?) {
-        floatingPanel.detach()
-        restoredFloatingPosition = position
+    private var keyboardBottom: NSLayoutConstraint?
+    private var measuredFooter: CGFloat = 0
+    private weak var observedHost: UIView?
+    private var hostBoundsObservation: NSKeyValueObservation?
+    /// How far the card extends past this view into UIKit's floating footer,
+    /// so its bottom edge sits where Apple's keyboard's does.
+    private var footerOverlap: CGFloat {
+        keyboard.usesSystemPlacement && isNativeFloating && keyboard.superview === self ? measuredFooter : 0
     }
 
     func setUsesSystemPlacement(_ value: Bool) {
         guard keyboard.usesSystemPlacement != value else { return }
-        // Restore UIKit's mask and center before the content changes hosts.
-        // Keep the native anchor for a later return to the system container.
-        let position = floatingPosition
+        // Restore UIKit's mask before the content changes hosts.
         hostingGeneration += 1
         endFloatingHold()
-        releaseFloatingPanel()
-        restoredFloatingPosition = position
+        removeHandleTapGuard()
+        floatingPanel.detach()
         keyboard.usesSystemPlacement = value
         setNeedsLayout()
     }
@@ -78,6 +67,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         heightConstraint.priority = .init(999)
         heightConstraint.isActive = true
         keyboard.useContainerSizing()
+        keyboard.systemFloatingHandle = { [weak self] in self?.systemFloatingHandle() }
         keyboard.onAppearanceChanged = { [weak self] in
             self?.updateAppearance()
             self?.onAppearanceChanged?()
@@ -95,12 +85,8 @@ final class TerminalTouchKeyboardInputView: UIInputView {
                 guard let self else { break }
                 guard !animating else { continue }
                 self.finishKeyboardTransition()
-                // Placement is left alone while UIKit animates the host;
-                // restore the anchor once it has settled.
-                if self.keyboard.usesSystemPlacement, self.isNativeFloating, !self.suppressed,
-                   self.keyboard.superview === self, self.window != nil {
-                    self.updateFloatingPanel()
-                }
+                // UIKit can replace the hosting item during its animation.
+                if self.window != nil { self.updateFloatingPanel() }
             }
         }
     }
@@ -110,7 +96,13 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     /// container: a full-width interim host then has nothing to show.
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric,
-               height: suppressed || awaitingFloatingLayout ? 0 : keyboard.intrinsicContentSize.height)
+               height: suppressed || awaitingFloatingLayout ? 0 : max(0, keyboard.intrinsicContentSize.height - footerOverlap))
+    }
+
+    /// Touches on the part of the card inside UIKit's footer.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        super.point(inside: point, with: event)
+            || (footerOverlap > 0 && !keyboard.isHidden && keyboard.frame.contains(point))
     }
 
     private var expectsNativeFloating: Bool {
@@ -123,7 +115,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         guard suppressed != value else { return }
         hostingGeneration += 1
         suppressed = value
-        if value { releaseFloatingPanel() }
+        setNeedsLayout()
         keyboard.cancelInteraction(preservingModifiers: true)
         if !value && expectsNativeFloating { beginFloatingHold() }
         if keyboard.superview === self { keyboard.isHidden = value || awaitingFloatingLayout }
@@ -154,21 +146,20 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         // A genuine system docking must still be honored once the transition
         // finishes, even if UIKit never restores a narrow floating container.
         endFloatingHold()
+        floatingHoldExpired = true
         updateHeight()
         setNeedsLayout()
     }
 
     func updateHeight() {
         let height = intrinsicContentSize.height
+        keyboardBottom?.constant = footerOverlap
         guard abs(heightConstraint.constant - height) > 0.5 else { return }
-        // Capture the visible position before UIKit resizes/recenters its host,
-        // including when the user has not dragged the keyboard yet.
-        if keyboard.usesSystemPlacement, isNativeFloating, !suppressed {
-            floatingPanel.preservePosition()
-        }
         heightConstraint.constant = height
         invalidateIntrinsicContentSize()
         setNeedsLayout()
+        // A floating hosting item is only resized when its container lays out.
+        if isNativeFloating { superview?.superview?.setNeedsLayout() }
     }
 
     private func updateAppearance() {
@@ -184,6 +175,7 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         // They are not a user's request to dock the floating keyboard.
         guard !suppressed, keyboard.superview === self, bounds.width > 0, size.width > 0 else {
             super.layoutSubviews()
+            updateFloatingPanel()
             return
         }
         let floating = TerminalTouchKeyboardModel.isFloatingInput(
@@ -196,7 +188,18 @@ final class TerminalTouchKeyboardInputView: UIInputView {
             super.layoutSubviews()
             return
         }
+        // Presenting a floating keyboard, UIKit can lay it out full width first.
+        if !floating, !floatingHoldExpired, expectsNativeFloating,
+           !(isNativeFloating && shouldHideAfterDocking?() == true) {
+            beginFloatingHold()
+            keyboard.isHidden = true
+            updateAppearance()
+            updateHeight()
+            super.layoutSubviews()
+            return
+        }
         if floating {
+            floatingHoldExpired = false
             endFloatingHold()
             updateAppearance()
         }
@@ -244,28 +247,12 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         super.layoutSubviews()
         updateFloatingPanel()
         keyboard.isHidden = false
-        // Our layout can run before UIKit finishes positioning the containing
-        // host. Apply the anchor again after that enclosing layout has returned.
-        if keyboard.usesSystemPlacement, isNativeFloating, !floatingPositionUpdateScheduled {
-            floatingPositionUpdateScheduled = true
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                self.floatingPositionUpdateScheduled = false
-                guard self.hostingGeneration == generation, self.window != nil else { return }
-                self.updateFloatingPanel()
-            }
-        }
     }
 
     override func willMove(toWindow newWindow: UIWindow?) {
         if newWindow !== window {
             hostingGeneration += 1
-            if keyboard.usesSystemPlacement, isNativeFloating, !suppressed {
-                // Capture before reparenting, but do not reset the old host's
-                // center while our content is still visibly attached to it.
-                floatingPanel.preservePosition()
-                floatingPanel.cancelDrag()
-            }
+            floatingHoldExpired = false
         }
         super.willMove(toWindow: newWindow)
     }
@@ -273,67 +260,80 @@ final class TerminalTouchKeyboardInputView: UIInputView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil {
-            releaseFloatingPanel()
+            removeHandleTapGuard()
+            floatingPanel.detach()
         } else {
             setNeedsLayout()
         }
     }
 
+    /// UIKit keeps its floating-keyboard handle, hidden, in the hosting item. Touches
+    /// routed to it run the native drag, so UIKit itself saves the new position.
+    private func systemFloatingHandle() -> UIView? {
+        func find(_ view: UIView) -> UIView? {
+            if String(describing: type(of: view)) == "UIKeyboardModeSwitcherView" { return view }
+            for subview in view.subviews where subview !== self {
+                if let found = find(subview) { return found }
+            }
+            return nil
+        }
+        guard let host = superview, let handle = find(host) else { return nil }
+        var ancestor = handle.superview
+        while let view = ancestor, view !== host { view.isHidden = false; ancestor = view.superview }
+        if handleTapGuard.view !== handle {
+            handleTapGuard.view?.removeGestureRecognizer(handleTapGuard)
+            handle.addGestureRecognizer(handleTapGuard)
+        }
+        return handle
+    }
+
+    /// Apple's keyboard reuses the handle, so leave it untouched once our card leaves.
+    private func removeHandleTapGuard() {
+        handleTapGuard.view?.removeGestureRecognizer(handleTapGuard)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        gestureRecognizer === handleTapGuard && otherGestureRecognizer.view === handleTapGuard.view
+            && type(of: otherGestureRecognizer) == UITapGestureRecognizer.self
+    }
+
+    /// Clips UIKit's floating hosting item to the card, or hides the item while
+    /// the card is elsewhere: its empty frame otherwise draws a stray line.
     private func updateFloatingPanel() {
-        guard keyboard.usesSystemPlacement, isNativeFloating, !suppressed,
-              keyboard.superview === self else {
-            releaseFloatingPanel()
+        let size = hostSize?() ?? .zero
+        guard window != nil, bounds.width > 0, size.width > 0,
+              TerminalTouchKeyboardModel.isFloatingInput(width: bounds.width, hostWidth: size.width,
+                                                         isPad: traitCollection.userInterfaceIdiom == .pad) else {
+            removeHandleTapGuard()
+            floatingPanel.detach()
+            observedHost = nil
+            hostBoundsObservation = nil
             return
         }
-        if let position = restoredFloatingPosition {
-            floatingPanel.savedPosition = position
-            restoredFloatingPosition = nil
+        let showsCard = keyboard.usesSystemPlacement && isNativeFloating && !suppressed && keyboard.superview === self
+        if !showsCard { removeHandleTapGuard() }
+        // UIKit adds and drops its footer without laying this view out.
+        let observed = showsCard ? superview : nil
+        if observedHost !== observed {
+            observedHost = observed
+            hostBoundsObservation = observed?.layer.observe(\.bounds) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.setNeedsLayout() }
+            }
         }
-        floatingPanel.update(input: self, content: keyboard)
-        if window != nil, floatingPositionDisplayLink == nil {
-            let observer = FloatingPositionObserver()
-            observer.input = self
-            let link = CADisplayLink(target: observer, selector: #selector(FloatingPositionObserver.update(_:)))
-            floatingPositionDisplayLink = link
-            link.add(to: .main, forMode: .common)
+        if showsCard, !keyboard.isHidden, bounds.height > 0, let host = superview,
+           abs(host.bounds.width - bounds.width) < 1,
+           abs(host.convert(host.bounds, to: nil).width - host.bounds.width) < 1 {
+            // UIKit reserves a footer below a floating input for its handle, but
+            // not on every layout, so it is measured each time.
+            let footer = host.bounds.height - bounds.height
+            let overlap = footer > 0.5 && footer < 100 ? footer : 0
+            if abs(overlap - measuredFooter) > 0.5 {
+                measuredFooter = overlap
+                updateHeight()
+            }
         }
-        ownsFloatingDragCallbacks = true
-        keyboard.onFloatingDrag = { [weak self] translation, ended in
-            self?.moveFloatingPanel(translation, ended: ended)
-        }
-        keyboard.onFloatingDragCancelled = { [weak self] in self?.floatingPanel.cancelDrag() }
-        keyboard.onFloatingNudge = { [weak self] delta in self?.moveFloatingPanel(delta, ended: true) }
-    }
-
-    private func moveFloatingPanel(_ translation: CGPoint, ended: Bool) {
-        guard keyboard.usesSystemPlacement, isNativeFloating, !suppressed,
-              keyboard.superview === self else { return }
-        // A host may be replaced between input-root layout passes. Reacquire
-        // it here too, so the handle never depends on toggling input views.
-        floatingPanel.update(input: self, content: keyboard)
-        floatingPanel.move(translation, ended: ended)
-    }
-
-    private func releaseFloatingPanel() {
-        floatingPositionDisplayLink?.invalidate()
-        floatingPositionDisplayLink = nil
-        // UIKit can briefly remove or redock the input root during a responder
-        // handoff. That is not a request to forget the floating screen anchor.
-        floatingPanel.detach(preservingPosition: true)
-        guard ownsFloatingDragCallbacks else { return }
-        ownsFloatingDragCallbacks = false
-        keyboard.onFloatingDrag = nil
-        keyboard.onFloatingDragCancelled = nil
-        keyboard.onFloatingNudge = nil
-    }
-
-    private func maintainFloatingPosition() {
-        guard window != nil, keyboard.usesSystemPlacement, isNativeFloating,
-              !suppressed, keyboard.superview === self else { return }
-        // UIKit can move an ancestor without laying out this input view again.
-        // Follow those changes through the whole responder transition, rather
-        // than correcting only once on the next main-queue turn.
-        floatingPanel.maintainPosition(input: self, content: keyboard)
+        floatingPanel.update(input: self, content: showsCard ? keyboard : nil)
     }
 
     func attachKeyboard() {
@@ -344,11 +344,13 @@ final class TerminalTouchKeyboardInputView: UIInputView {
         keyboard.isHidden = suppressed || awaitingFloatingLayout
         keyboard.translatesAutoresizingMaskIntoConstraints = false
         addSubview(keyboard)
+        let bottom = keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
+        keyboardBottom = bottom
         NSLayoutConstraint.activate([
             keyboard.leadingAnchor.constraint(equalTo: leadingAnchor),
             keyboard.trailingAnchor.constraint(equalTo: trailingAnchor),
             keyboard.topAnchor.constraint(equalTo: topAnchor),
-            keyboard.bottomAnchor.constraint(equalTo: bottomAnchor)
+            bottom
         ])
         updateHeight()
     }
@@ -441,56 +443,24 @@ final class TerminalTouchKeyboardInputController: UIInputViewController {
 
 /// An app input view replaces the system keys, including their drag handle.
 /// UIKit can nevertheless keep a taller floating hosting item (the old system
-/// keyboard's footer). Clip that item to our card and move the item as a whole,
-/// so rendering and hit testing travel together in the keyboard's own window.
+/// keyboard's footer), and it owns that item's placement: writes to its center
+/// or transform are undone. Only clip the item to our card, or hide it.
 /// No keyboard-window frame or private selector is changed.
 @MainActor
 private final class TerminalTouchKeyboardFloatingPanel {
     private weak var panel: UIView?
-    private weak var content: UIView?
     private let cardMask = CAShapeLayer()
-    private var baseCenter = CGPoint.zero
-    private var lastAppliedCenter: CGPoint?
-    private var desiredOrigin: CGPoint?
-    private weak var positionScreen: UIScreen?
     private var originalMask: CALayer?
-    private var dragOrigin: CGPoint?
-    /// UIKit put the host back after a center we wrote. From then on its
-    /// placement owns `center`; drags apply a translation transform instead,
-    /// which that placement usually leaves alone. Restored on detach.
-    private var placementRejected = false
-    private var originalTransform = CGAffineTransform.identity
 
-    var savedPosition: (origin: CGPoint, screen: UIScreen)? {
-        get {
-            guard let desiredOrigin, let positionScreen else { return nil }
-            return (desiredOrigin, positionScreen)
-        }
-        set {
-            desiredOrigin = newValue?.origin
-            positionScreen = newValue?.screen
-        }
-    }
-
-    func preservePosition() {
-        guard desiredOrigin == nil, let panel, let content, let window = panel.window,
-              content.isDescendant(of: panel) else { return }
-        positionScreen = window.screen
-        desiredOrigin = window.screen.coordinateSpace.convert(
-            content.convert(content.bounds, to: window), from: window).origin
-    }
-
-    func update(input: UIView, content: UIView) {
-        guard let window = input.window else { detach(preservingPosition: true); return }
-        if let positionScreen, positionScreen !== window.screen { detach() }
+    /// Without `content`, the whole item is masked out.
+    func update(input: UIView, content: UIView?) {
+        guard let window = input.window else { detach(); return }
         // Stop before the full-screen tracking view. Only the narrow hosting
         // item containing this input belongs to this floating keyboard.
         // A self-sizing pass can temporarily leave an ancestor at its old
-        // height, including after a drawer toggle with no drag in progress.
-        // Once found, never probe downward again: an inner view is laid out by
-        // its parent, so moving it has no visible effect and strands the drag
-        // handle. Climbing further up is allowed, because a host chosen during
-        // presentation can itself be such an inner view.
+        // height. Once found, never probe downward again; climbing further up
+        // is allowed, because a host chosen during presentation can itself be
+        // an inner view.
         var candidate = input
         if let panel, panel.window === window, input.isDescendant(of: panel) { candidate = panel }
         while let parent = candidate.superview, parent !== window,
@@ -499,127 +469,27 @@ private final class TerminalTouchKeyboardFloatingPanel {
               parent.bounds.height <= input.bounds.height + 100 {
             candidate = parent
         }
-        guard candidate !== input else { detach(preservingPosition: true); return }
+        guard candidate !== input else { detach(); return }
         if panel !== candidate {
-            detach(preservingPosition: true)
+            detach()
             panel = candidate
-            baseCenter = candidate.center
             originalMask = candidate.layer.mask
             candidate.layer.mask = cardMask
         }
-        self.content = content
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         cardMask.frame = candidate.bounds
-        cardMask.path = UIBezierPath(roundedRect: content.convert(content.bounds, to: candidate),
-                                    cornerRadius: content.layer.cornerRadius).cgPath
+        cardMask.path = content.map {
+            UIBezierPath(roundedRect: $0.convert($0.bounds, to: candidate), cornerRadius: $0.layer.cornerRadius).cgPath
+        } ?? CGPath(rect: .zero, transform: nil)
         cardMask.fillColor = UIColor.black.cgColor
         CATransaction.commit()
-        // Leave initial UIKit presentation alone, then retain the position
-        // captured by a drag or a content-height change.
-        if let desiredOrigin { position(at: desiredOrigin) }
     }
 
-    func maintainPosition(input: UIView, content: UIView) {
-        guard let window = input.window else { return }
-        guard let panel, panel.window === window, input.isDescendant(of: panel),
-              positionScreen == nil || positionScreen === window.screen,
-              self.content === content else {
-            update(input: input, content: content)
-            return
-        }
-        // Geometry-only work: do not rebuild the mask or keyboard effect on
-        // every frame. Normal input layout continues to own their sizing.
-        // After a rejection this only adjusts the transform, so it follows
-        // UIKit's re-placements (e.g. on a focus handoff) without a fight.
-        if let desiredOrigin { position(at: desiredOrigin) }
-    }
-
-    /// Store anchors in screen coordinates: UIKit may resize, move, or replace
-    /// its window during an input-height change. Convert the window-space drag
-    /// vector without incorporating the window's screen offset.
-    func move(_ translation: CGPoint, ended: Bool) {
-        guard let content, let window = panel?.window else { return }
-        let space = window.screen.coordinateSpace
-        positionScreen = window.screen
-        if dragOrigin == nil {
-            dragOrigin = space.convert(content.convert(content.bounds, to: window), from: window).origin
-        }
-        guard let origin = dragOrigin else { return }
-        let start = space.convert(CGPoint.zero, from: window)
-        let end = space.convert(translation, from: window)
-        let destination = CGPoint(x: origin.x + end.x - start.x, y: origin.y + end.y - start.y)
-        desiredOrigin = destination
-        position(at: destination)
-        if ended { dragOrigin = nil }
-    }
-
-    private func position(at origin: CGPoint) {
-        guard let panel, let content, let window = panel.window,
-              let parent = panel.superview else { return }
-        // While UIKit animates the keyboard in, the host's center moves on
-        // its own. Reading that as a rejected write would lock in an offset
-        // measured mid-animation and strand the card somewhere else.
-        guard !KeyboardTracker.shared.isKeyboardAnimating else { return }
-        // Preserve UIKit's current scale/rotation. Capturing its transform at
-        // attachment can freeze a transient pinch/presentation scale forever.
-        if !placementRejected, panel.center != lastAppliedCenter {
-            baseCenter = panel.center
-            if lastAppliedCenter != nil {
-                // UIKit re-asserted its own placement after our write, and it
-                // keeps doing so after every later write. Writing center again
-                // only makes the card fight and freeze: leave center to UIKit
-                // and hold the saved anchor by transform instead. A focus
-                // handoff re-places the host, so dropping it loses the drag.
-                self.lastAppliedCenter = nil
-                placementRejected = true
-                originalTransform = panel.transform
-            }
-        }
-        let space = window.screen.coordinateSpace
-        let frame = space.convert(content.convert(content.bounds, to: window), from: window)
-        let available = space.bounds.inset(by: window.safeAreaInsets).insetBy(dx: 12, dy: 12)
-        let proposed = CGRect(origin: origin, size: frame.size)
-        let moved = TerminalTouchKeyboardModel.clampedFloatingDragFrame(proposed, in: available)
-        // Clamping an intermediate resize frame must not replace the anchor:
-        // UIKit can report a temporarily larger host before layout settles.
-        let before = parent.convert(space.convert(frame.origin, to: window), from: window)
-        let after = parent.convert(space.convert(moved.origin, to: window), from: window)
-        guard abs(after.x - before.x) > 0.5 || abs(after.y - before.y) > 0.5 else { return }
-        // Both deltas are in the parent's coordinates, so UIKit's own
-        // transform is applied exactly once. No implicit animation may trail
-        // the finger.
-        UIView.performWithoutAnimation {
-            if placementRejected {
-                panel.transform = panel.transform.concatenating(
-                    CGAffineTransform(translationX: after.x - before.x, y: after.y - before.y))
-            } else {
-                panel.center = CGPoint(x: panel.center.x + after.x - before.x,
-                                       y: panel.center.y + after.y - before.y)
-                lastAppliedCenter = panel.center
-            }
-        }
-    }
-
-    func cancelDrag() { dragOrigin = nil }
-
-    func detach(preservingPosition: Bool = false) {
-        if let panel {
-            if panel.center == lastAppliedCenter { panel.center = baseCenter }
-            if placementRejected { panel.transform = originalTransform }
-            if panel.layer.mask === cardMask { panel.layer.mask = originalMask }
-        }
+    func detach() {
+        if let panel, panel.layer.mask === cardMask { panel.layer.mask = originalMask }
         panel = nil
-        content = nil
         originalMask = nil
-        lastAppliedCenter = nil
-        placementRejected = false
-        originalTransform = .identity
-        if !preservingPosition {
-            desiredOrigin = nil
-            positionScreen = nil
-            dragOrigin = nil
-        }
     }
 }
 

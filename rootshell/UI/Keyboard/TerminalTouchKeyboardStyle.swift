@@ -50,6 +50,22 @@ enum TerminalTouchKeyboardAppearance {
     }
 }
 
+/// Apple draws capitals smaller and a weight heavier than lowercase, so
+/// Shift doesn't swell letters to the key edges.
+enum TerminalTouchLegend {
+    static func isCapital(_ text: String?) -> Bool { text.map { $0.count == 1 && $0 != $0.lowercased() } ?? false }
+    static func scale(_ text: String?) -> CGFloat { isCapital(text) ? 0.88 : 1 }
+    static func weight(_ weight: UIFont.Weight, for text: String?) -> UIFont.Weight {
+        guard isCapital(text) else { return weight }
+        switch weight {
+        case .regular: return .medium
+        case .medium: return .semibold
+        case .semibold: return .bold
+        default: return weight
+        }
+    }
+}
+
 /// Rendering contract shared by keyboard styles. Input and hit testing stay in
 /// TerminalTouchKeyboardView; each style owns its keycaps, previews, and drawers.
 class TerminalTouchKeycap: UIView {
@@ -68,6 +84,13 @@ class TerminalTouchKeycap: UIView {
         super.init(frame: .zero)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    var legendScale: CGFloat { TerminalTouchLegend.scale(label.text) }
+    func legendWeight(_ weight: UIFont.Weight) -> UIFont.Weight { TerminalTouchLegend.weight(weight, for: label.text) }
+    func setLegend(_ text: String) {
+        guard label.text != text else { return }
+        label.text = text
+        setNeedsLayout()
+    }
     func setSymbol(_ name: String?) {
         icon.image = name.flatMap { UIImage(systemName: $0) }
         label.isHidden = icon.image != nil
@@ -80,7 +103,17 @@ class TerminalTouchKeycap: UIView {
 class TerminalTouchKeyPreview: UIView {
     let label = UILabel()
     var palette: TerminalTouchKeyboardPalette?
-    var text: String? { get { label.text } set { label.text = newValue } }
+    /// The lowercase legend; capitals derive from it as keycaps do.
+    var legend: (size: CGFloat, weight: UIFont.Weight) = (32, .regular)
+    func legendFont(size: CGFloat, weight: UIFont.Weight) -> UIFont { .systemFont(ofSize: size, weight: weight) }
+    var text: String? {
+        get { label.text }
+        set {
+            label.text = newValue
+            label.font = legendFont(size: legend.size * TerminalTouchLegend.scale(newValue),
+                                    weight: TerminalTouchLegend.weight(legend.weight, for: newValue))
+        }
+    }
 }
 
 class TerminalTouchDrawerButton: TerminalTouchRepeatingButton {

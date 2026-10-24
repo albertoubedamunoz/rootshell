@@ -475,6 +475,10 @@ extension MainView {
         // focusDidChange returns true only when becomeFirstResponder() succeeded
         // synchronously, meaning UIKit already auto-resigned the old terminal.
         var newFocusAcquired = false
+        // A pane created for this tab (a herdr or tmux attach) may not be in
+        // the window yet. It takes first responder once attached; resigning
+        // the old terminal first would hide and rebuild the keyboard meanwhile.
+        var newFocusAwaitsWindow = false
         if let focus = paneToFocus {
             Ghostty.logger.info("Focusing terminal at tab \(newValue.uuidString)")
             focus.isLogicallyFocused = true
@@ -500,6 +504,7 @@ extension MainView {
             // picking a tab should refocus the terminal for typing.
             if !(showingTabSwitcher && !tabSidebarDismissesOnSelect && !tabSidebarIsDocked) {
                 newFocusAcquired = focus.focusDidChange(true)
+                newFocusAwaitsWindow = !newFocusAcquired && focus.window == nil
             }
 
             // USER tab switch into a tmux window tab: sync tmux's current
@@ -525,7 +530,7 @@ extension MainView {
         if let oldFocus = oldTab?.focusedPane, oldFocus !== paneToFocus {
             oldFocus.isLogicallyFocused = false
             oldFocus.asTerminal?.shouldBecomeFirstResponderWhenReady = false
-            oldFocus.focusDidChange(false, skipResign: newFocusAcquired)
+            oldFocus.focusDidChange(false, skipResign: newFocusAcquired || newFocusAwaitsWindow)
         }
 
         // Show tab indicator overlay when tab bar is hidden, unless the user

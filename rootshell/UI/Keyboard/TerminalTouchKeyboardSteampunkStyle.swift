@@ -132,8 +132,8 @@ final class TerminalTouchSteampunkKeycap: TerminalTouchKeycap {
         let r = Art.radius(size: size, role: role)
         socket.path = plate.isHidden ? nil : UIBezierPath(roundedRect: CGRect(x: plate.center.x - size.width / 2 - 0.5,
             y: plate.center.y - size.height / 2 + 1, width: size.width + 1, height: size.height + 1), cornerRadius: r + 0.5).cgPath
-        let preferred: CGFloat = small ? 13 : (drawer ? (subtitleLabel.isHidden ? 16 : 12) : (key.title.count == 1 ? 24 : 15))
-        let font = UIFont.systemFont(ofSize: min(preferred, max(10, size.height * 0.63)), weight: character && !small ? .medium : .semibold)
+        let preferred: CGFloat = small ? 13 : (drawer ? (subtitleLabel.isHidden ? 16 : 12) : (key.title.count == 1 ? 24 * legendScale : 15))
+        let font = UIFont.systemFont(ofSize: min(preferred, max(10, size.height * 0.63)), weight: character && !small ? legendWeight(.medium) : .semibold)
         if character && key.title.count == 1 && !small && !drawer, let descriptor = font.fontDescriptor.withDesign(.serif) {
             label.font = UIFont(descriptor: descriptor, size: font.pointSize)
         } else { label.font = font }
@@ -253,8 +253,7 @@ final class TerminalTouchSteampunkKeyPreview: TerminalTouchKeyPreview {
         super.init(frame: CGRect(x: 0, y: 0, width: 52, height: 55))
         isUserInteractionEnabled = false; isAccessibilityElement = false; accessibilityElementsHidden = true
         addSubview(artwork)
-        let font = UIFont.systemFont(ofSize: 31, weight: .medium)
-        label.font = font.fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: 31) } ?? font
+        legend = (31, .medium)
         label.textAlignment = .center; label.adjustsFontSizeToFitWidth = true; label.minimumScaleFactor = 0.65
         addSubview(label)
         registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitDisplayScale.self, UITraitAccessibilityContrast.self]) {
@@ -263,6 +262,10 @@ final class TerminalTouchSteampunkKeyPreview: TerminalTouchKeyPreview {
         prepareArtwork()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func legendFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let font = UIFont.systemFont(ofSize: size, weight: weight)
+        return font.fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: size) } ?? font
+    }
     override func layoutSubviews() {
         super.layoutSubviews()
         label.frame = bounds.insetBy(dx: 6, dy: 4)

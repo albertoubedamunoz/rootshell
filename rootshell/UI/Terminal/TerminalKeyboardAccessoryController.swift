@@ -69,13 +69,22 @@ final class TerminalKeyboardAccessoryController: NSObject {
         get { ownedTouchKeyboardScope?.overlay }
         set { ownedTouchKeyboardScope?.overlay = newValue }
     }
+    /// One automatic focus reclaim, re-armed by a normal claim or a new hinge
+    /// event, so the app never trades focus back and forth with the system.
+    private var focusReclaimArmed = true
+    private var reclaimHingeGeneration = -1
+    private var isReclaimingFocus = false
     /// Owner displaced by the last claim, so a refused focus change can hand
     /// the keyboard straight back to the responder that kept focus.
     private weak var displacedTouchKeyboardOwner: TerminalKeyboardAccessoryController?
     private let fallbackTouchKeyboardState = TerminalFloatingKeyboardState()
     private var boundTouchKeyboardState: TerminalFloatingKeyboardState?
     private var touchKeyboardEnabled = SettingsStore.shared.value(Settings.Keyboard.touchEnabled)
-    private var touchSystemFloating = SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+    private var touchSystemFloating = TerminalKeyboardAccessoryController.systemFloatingSetting
+    /// iPhone has no system floating keyboard, so it always detaches in the app.
+    private static var systemFloatingSetting: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+    }
     private var touchStatePerTab = SettingsStore.shared.value(Settings.Keyboard.touchStatePerTab)
     private var floatingSyncScheduled = false
 
@@ -112,6 +121,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         touchKeyboardWindowState = scope
         let ownerChanged = scope.owner !== self
         displacedTouchKeyboardOwner = ownerChanged ? scope.owner : nil
+        scope.parkedOwner = nil
+        if !isReclaimingFocus { focusReclaimArmed = true }
         if ownerChanged {
             scope.owner?.releaseTouchKeyboardState()
             scope.owner = self
@@ -151,10 +162,32 @@ final class TerminalKeyboardAccessoryController: NSObject {
         onActiveKeyboardModifiersChanged?([])
         // A floating overlay is outside UIKit's input hierarchy. Remove it on
         // genuine focus loss, but let an incoming terminal claim it first.
-        DispatchQueue.main.async { [weak scope] in
+        // Focus taken outside the app, as the system does during a Duo fold,
+        // is asked back once. If the system takes it again, the card stays
+        // until a key press reclaims it.
+        DispatchQueue.main.async { [weak self, weak scope] in
             guard let scope, scope.owner == nil else { return }
+            if let self, scope.overlay != nil,
+               let terminal = self.host as? Ghostty.TerminalView, terminal.lostFocusOutsideWindow {
+                if self.focusReclaimArmed || DuoHingeEvents.generation != self.reclaimHingeGeneration {
+                    self.focusReclaimArmed = false
+                    self.reclaimHingeGeneration = DuoHingeEvents.generation
+                    self.isReclaimingFocus = true
+                    let reclaimed = terminal.becomeFirstResponder()
+                    self.isReclaimingFocus = false
+                    if reclaimed { return }
+                }
+                scope.parkedOwner = self
+                return
+            }
             scope.dismissOverlay()
         }
+    }
+
+    /// A key press on a parked card returns focus to its terminal first.
+    func reclaimParkedTouchKeyboard() -> Bool {
+        guard let terminal = host as? Ghostty.TerminalView else { return false }
+        return terminal.isFirstResponder || terminal.becomeFirstResponder()
     }
 
     /// Undo a claim after UIKit refused the focus change. The outgoing
@@ -232,8 +265,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
     }
 
     private var touchKeyboardPlacement: TerminalTouchKeyboardModel.Placement {
-        guard host?.keyboardHostView.traitCollection.userInterfaceIdiom == .pad,
-              host?.keyboardHostView.window != nil else { return .docked }
+        guard host?.keyboardHostView.window != nil else { return .docked }
         if touchSystemFloating {
             return touchKeyboardInputView?.isNativeFloating == true ? .floating : .docked
         }
@@ -270,15 +302,33 @@ final class TerminalKeyboardAccessoryController: NSObject {
         toolbarOnlyMode && toolbarOnlyUsesPrimaryInputView
     }
 
+    private struct AppliedSuppression: Equatable {
+        let input: ObjectIdentifier
+        let suppressed: Bool
+        let toolbar: Bool
+        let toolbarActive: Bool
+        let bottomInset: CGFloat
+        let pinned: Bool
+        let keyboardHost: ObjectIdentifier?
+        let inputSuppressed: Bool
+        let toolbarOnly: Bool
+    }
+    private var appliedSuppression: AppliedSuppression?
+
     private func updateTouchKeyboardInputSuppression() {
         guard let scope = touchKeyboardInputScope else { return }
         let toolbar = usesCompactTouchKeyboard
-        if toolbar && !scope.keyboard.isToolbarOnly {
-            currentTouchKeyboardState.nativeFloatingPosition = scope.input.floatingPosition
-        }
         // Suppress native placement before shrinking the content, otherwise a
         // toolbar layout can overwrite the saved floating position or dock it.
         let suppressed = !usesFullTouchKeyboard || (!touchSystemFloating && touchKeyboardPlacement == .floating)
+        // UIKit polls the input-view getters hundreds of times a second; only
+        // reapply when something changed.
+        let applied = AppliedSuppression(input: ObjectIdentifier(scope.input), suppressed: suppressed, toolbar: toolbar,
+            toolbarActive: usesTouchKeyboardToolbar, bottomInset: scope.toolbarInput.reservedBottomInset,
+            pinned: keyboardPinnedHidden, keyboardHost: scope.keyboard.superview.map(ObjectIdentifier.init),
+            inputSuppressed: scope.input.suppressed, toolbarOnly: scope.keyboard.isToolbarOnly)
+        guard applied != appliedSuppression else { return }
+        appliedSuppression = applied
         if suppressed { scope.input.setSuppressed(true) }
         scope.toolbarInput.isActive = usesTouchKeyboardToolbar
         scope.keyboard.setToolbarPresentation(only: toolbar,
@@ -351,12 +401,15 @@ final class TerminalKeyboardAccessoryController: NSObject {
             keyboard.setFloating(true)
             let overlay = TerminalFloatingKeyboardOverlay(keyboard: keyboard, state: currentTouchKeyboardState)
             // The overlay outlives this owner; route through the scope.
-            overlay.isHostActive = { [weak scope] in scope?.owner?.touchKeyboardIsActive == true }
+            overlay.isHostActive = { [weak scope] in
+                scope?.owner?.touchKeyboardIsActive == true || scope?.parkedOwner != nil
+            }
             overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
             overlay.inputRegion = scope.inputRegion
+            overlay.foldRegion = scope.foldRegion
             floatingKeyboardOverlay = overlay
-            window.addSubview(overlay)
+            overlay.attach(to: window)
             // The retained keyboard can still have its old docked frame.
             // Size the card in its destination before making keys visible.
             overlay.setNeedsLayout()
@@ -369,8 +422,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func setTouchKeyboardPlacement(_ placement: TerminalTouchKeyboardModel.Placement) {
         guard !touchSystemFloating, usesFullTouchKeyboard, host?.keyboardIsFirstResponder == true,
-              let window = host?.keyboardHostView.window,
-              window.traitCollection.userInterfaceIdiom == .pad else { return }
+              host?.keyboardHostView.window != nil else { return }
         let state = currentTouchKeyboardState
         guard state.placement != placement else { return }
         (host as? Ghostty.TerminalView)?.prepareTouchKeyboardSwitch()
@@ -409,13 +461,9 @@ final class TerminalKeyboardAccessoryController: NSObject {
         guard let keyboard = touchKeyboard, let input = touchKeyboardInputView,
               keyboard.usesSystemPlacement != touchSystemFloating else { return }
         (host as? Ghostty.TerminalView)?.prepareTouchKeyboardSwitch()
-        if keyboard.usesSystemPlacement {
-            currentTouchKeyboardState.nativeFloatingPosition = input.floatingPosition
-            if input.isNativeFloating { currentTouchKeyboardState.placement = .floating }
-        }
+        if keyboard.usesSystemPlacement, input.isNativeFloating { currentTouchKeyboardState.placement = .floating }
         // Reconcile against the presentation itself: settings can change while
         // no terminal owns it, so a controller's cached setting is insufficient.
-        // Release native drag callbacks before an overlay installs its own.
         input.setUsesSystemPlacement(touchSystemFloating)
         dismissFloatingTouchKeyboard()
         if touchSystemFloating || touchKeyboardPlacement == .docked {
@@ -444,7 +492,7 @@ final class TerminalKeyboardAccessoryController: NSObject {
 
     private func touchKeyboardSettingsDidChange() {
         let enabled = SettingsStore.shared.value(Settings.Keyboard.touchEnabled)
-        let systemFloating = SettingsStore.shared.value(Settings.Keyboard.touchSystemFloating)
+        let systemFloating = Self.systemFloatingSetting
         let perTab = SettingsStore.shared.value(Settings.Keyboard.touchStatePerTab)
         let enabledChanged = enabled != touchKeyboardEnabled
         let changed = enabledChanged || systemFloating != touchSystemFloating || perTab != touchStatePerTab
