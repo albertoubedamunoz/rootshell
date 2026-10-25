@@ -189,6 +189,10 @@ struct KeyboardToolbarRepresentable: UIViewRepresentable {
         func sendRawData(_ data: Data) {
             focusedTerminal?.sendRawData(data)
         }
+
+        func sendKeyCombo(_ combo: SequenceStep.KeyCombo) -> Bool {
+            focusedTerminal?.sendKeyCombo(combo) ?? false
+        }
     }
 }
 #endif

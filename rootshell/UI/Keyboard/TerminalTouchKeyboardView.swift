@@ -1830,6 +1830,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         updatePrediction()
     }
     func sendRawData(_ data: Data) { guard canSend else { return }; sequenceDelegate?.sendRawData(data) }
+    func sendKeyCombo(_ combo: SequenceStep.KeyCombo) -> Bool {
+        guard canSend else { return true }
+        return sequenceDelegate?.sendKeyCombo(combo) ?? false
+    }
 
     private func showPreview(_ cap: TerminalTouchKeycap, modifiers: Int? = nil) {
         // Show above-finger feedback in both full-size and detached layouts.
@@ -2275,6 +2279,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         modifierState.consume()
         cancelInteraction(preservingModifiers: true)
         host?.touchKeyboardInvalidateSuggestions()
+        // Ghostty-encoded keys arrive asynchronously and would reorder against
+        // raw steps, so only a lone combo takes that path.
+        if steps.count == 1, case .keyCombo(let combo) = steps[0], canSend,
+           sequenceDelegate?.sendKeyCombo(combo) == true { return }
         sequenceTask = Task { @MainActor [weak self] in
             for step in steps {
                 guard !Task.isCancelled, let self, self.canSend else { return }

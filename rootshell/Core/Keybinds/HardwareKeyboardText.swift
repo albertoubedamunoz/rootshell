@@ -95,6 +95,13 @@ enum HardwareKeyboardText {
         return usShiftMap[character] ?? character
     }
 
+    /// The US-layout key a shifted symbol sits on (`{` → `[`), or nil.
+    static func unshiftedCharacter(_ character: Character) -> Character? {
+        usUnshiftMap[character]
+    }
+
+    private static let usUnshiftMap = Dictionary(uniqueKeysWithValues: usShiftMap.map { ($1, $0) })
+
     private static let usShiftMap: [Character: Character] = [
         "1": "!", "2": "@", "3": "#", "4": "$", "5": "%",
         "6": "^", "7": "&", "8": "*", "9": "(", "0": ")",
