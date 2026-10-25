@@ -6108,4 +6108,61 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
         Ghostty.logger.debug("TerminalView: Sending raw data (\(data.count) bytes)")
         sendUserInput(data)
     }
+
+    /// Custom-key combos go through Ghostty so kitty/CSI u modes keep Shift
+    /// (Ctrl+Shift+[ under Neovim). Cmd combos keep raw bytes, avoiding app keybinds.
+    func sendKeyCombo(_ combo: SequenceStep.KeyCombo) -> Bool {
+        guard !combo.modifiers.isEmpty, !combo.modifiers.contains(.cmd) else { return false }
+        // A lone-ESC combo (Shift+Esc, Ctrl+[) keeps the raw path's discovery
+        // dismissal and herdr/tmux gateway detach.
+        if combo.terminalData() == Data([0x1B]),
+           discoveredSessions != nil || herdrController?.showsGatewayStatus == true
+            || tmuxController?.isActive == true || isTmuxGatewaySurfaceActive { return false }
+        var modifiers: KeyModifiers = []
+        if combo.modifiers.contains(.ctrl) { modifiers.insert(.control) }
+        if combo.modifiers.contains(.alt) { modifiers.insert(.alt) }
+        if combo.modifiers.contains(.shift) { modifiers.insert(.shift) }
+
+        var char: Character?
+        var usage: UIKeyboardHIDUsage?
+        switch combo.key {
+        case .letter(let c), .digit(let c), .symbol(let c):
+            var key = c.lowercased().first ?? c
+            #if !targetEnvironment(macCatalyst)
+            // Keep the local shell's Ctrl-C on its existing raw path.
+            if key == "c", modifiers.contains(.control), let localSession = session as? LocalShellSession,
+               !localSession.hasActiveEmbeddedSession { return false }
+            #endif
+            // A shifted symbol is its base key plus Shift, as on hardware.
+            if let base = HardwareKeyboardText.unshiftedCharacter(key) {
+                key = base
+                modifiers.insert(.shift)
+            }
+            guard Self.characterHIDUsageMap[key] != nil else { return false }
+            char = key
+        case .special(.space): char = " "
+        case .special(.returnKey): usage = .keyboardReturnOrEnter
+        case .special(.tab): usage = .keyboardTab
+        case .special(.escape): usage = .keyboardEscape
+        case .special(.backspace): usage = .keyboardDeleteOrBackspace
+        case .special(.delete): usage = .keyboardDeleteForward
+        case .special(.arrowUp): usage = .keyboardUpArrow
+        case .special(.arrowDown): usage = .keyboardDownArrow
+        case .special(.arrowLeft): usage = .keyboardLeftArrow
+        case .special(.arrowRight): usage = .keyboardRightArrow
+        case .special(.home): usage = .keyboardHome
+        case .special(.end): usage = .keyboardEnd
+        case .special(.pageUp): usage = .keyboardPageUp
+        case .special(.pageDown): usage = .keyboardPageDown
+        }
+
+        commitKoreanCompositionIfNeeded(external: true)
+        NotificationCenter.default.post(name: .ghosttyDidReceiveInput, object: self)
+        if let char { return sendViaGhosttyKeyEvent(char, modifiers: modifiers) }
+        guard let usage else { return false }
+        let mods = Self.ghosttyMods(modifiers)
+        guard sendKeyViaGhostty(keyCode: usage, action: .press, mods: mods) else { return false }
+        _ = sendKeyViaGhostty(keyCode: usage, action: .release, mods: mods)
+        return true
+    }
 }

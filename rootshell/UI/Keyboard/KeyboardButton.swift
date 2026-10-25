@@ -13,12 +13,16 @@ protocol KeyboardButtonDelegate: AnyObject {
     func keyPressed(_ key: String, modifiers: KeyModifiers)
     func cancelScrollTouches()
     func sendRawData(_ data: Data)
+    /// Encode a modified combo like the hardware key, honoring the terminal's
+    /// keyboard protocol. False means the caller sends `terminalData()` instead.
+    func sendKeyCombo(_ combo: SequenceStep.KeyCombo) -> Bool
 }
 
 extension KeyboardButtonDelegate {
     // Default no-op for buttons not in scrollable containers
     func cancelScrollTouches() {}
     func sendRawData(_ data: Data) {}
+    func sendKeyCombo(_ combo: SequenceStep.KeyCombo) -> Bool { false }
 
     /// Send a [SequenceStep] sequence to the terminal one step at a time, inserting
     /// a 50ms delay after any step whose data ends with ESC (0x1B). Prevents the
@@ -26,6 +30,9 @@ extension KeyboardButtonDelegate {
     /// keyboard toolbar's custom keys and the swipe gesture binding system.
     func sendSequenceSteps(_ steps: [SequenceStep]) {
         guard !steps.isEmpty else { return }
+        // Ghostty-encoded keys arrive asynchronously and would reorder against
+        // raw steps, so only a lone combo takes that path.
+        if steps.count == 1, case .keyCombo(let combo) = steps[0], sendKeyCombo(combo) { return }
 
         var index = 0
         func sendNext() {
