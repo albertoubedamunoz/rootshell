@@ -52195,7 +52195,7 @@
       }
     },
     "Add" : {
-      "comment" : "Add button",
+      "comment" : "Add button\nExternal SSH agents add discovered agent button\nLocal SSH agent audit action",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -73194,7 +73194,7 @@
       }
     },
     "Always" : {
-      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -151363,7 +151363,7 @@
       }
     },
     "Client" : {
-      "comment" : "HTTP capture field",
+      "comment" : "HTTP capture field\nLocal SSH agent client rule identity section",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -187826,7 +187826,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nShare link: copied to clipboard",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button\nShare link: copied to clipboard",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -217669,6 +217669,7 @@
       }
     },
     "Customize the detached keyboard’s background. Clear reveals more content; Solid removes transparency. Tint Strength adjusts how much of the keyboard’s background color is added. Older iPadOS versions use blur. Reduce Transparency always uses a solid background." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -217818,6 +217819,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自訂分離鍵盤的背景。「透明」會顯示更多內容，「不透明」則移除透明效果。「著色強度」可調整加入多少鍵盤背景色。較舊版本的 iPadOS 會改用模糊效果。開啟「降低透明度」時一律使用不透明背景。"
+          }
+        }
+      }
+    },
+    "Customize the detached keyboard’s background. Clear reveals more content; Solid removes transparency. Tint Strength adjusts how much of the keyboard’s background color is added. Older system versions use blur. Reduce Transparency always uses a solid background." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خصّص خلفية لوحة المفاتيح المنفصلة. يُظهر «شفاف» مزيدًا من المحتوى، ويزيل «معتم» الشفافية. وتضبط «قوة الصبغة» مقدار لون خلفية لوحة المفاتيح المُضاف. وتستخدم إصدارات النظام الأقدم الضبابية. ويستخدم «تقليل الشفافية» خلفية معتمة دائمًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalitza el fons del teclat desacoblat. «Transparent» deixa veure més contingut; «Opac» elimina la transparència. La intensitat del tint ajusta quant color de fons del teclat s'afegeix. Les versions antigues del sistema utilitzen difuminat. Amb «Reduir la transparència» activat, el fons sempre és opac."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přizpůsobte pozadí odpojené klávesnice. Čiré odhalí více obsahu, Neprůhledné odstraní průhlednost. Intenzita tónu určuje, kolik barvy pozadí klávesnice se přidá. Starší verze systému používají rozostření. Při zapnuté volbě Omezit průhlednost se vždy použije neprůhledné pozadí."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilpas baggrunden på det frigjorte tastatur. Klar viser mere indhold, mens Massiv fjerner gennemsigtigheden. Farvetoneintensitet justerer, hvor meget af tastaturets baggrundsfarve der tilføjes. Ældre systemversioner bruger sløring. Reducer gennemsigtighed bruger altid en massiv baggrund."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passen Sie den Hintergrund der abgelösten Tastatur an. „Klar“ lässt mehr Inhalt durchscheinen, „Deckend“ entfernt die Transparenz. „Farbtonstärke“ legt fest, wie viel der Hintergrundfarbe der Tastatur beigemischt wird. Ältere Systemversionen verwenden eine Weichzeichnung. Bei aktivierter Option „Transparenz reduzieren“ wird immer ein deckender Hintergrund verwendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personaliza el fondo del teclado desacoplado. «Transparente» deja ver más contenido; «Sólido» elimina la transparencia. «Intensidad del tinte» ajusta cuánto color de fondo del teclado se añade. Las versiones anteriores del sistema usan desenfoque. Con «Reducir transparencia» siempre se usa un fondo sólido."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mukauta irrotetun näppäimistön taustaa. Kirkas päästää enemmän sisältöä läpi, Umpinainen poistaa läpinäkyvyyden. Sävyn voimakkuus säätää, kuinka paljon näppäimistön taustaväriä lisätään. Vanhemmat järjestelmäversiot käyttävät sumennusta. Vähennä läpinäkyvyyttä -asetus käyttää aina umpinaista taustaa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnalisez l'arrière-plan du clavier détaché. Transparent laisse voir davantage de contenu ; Opaque supprime la transparence. Intensité de la teinte règle la quantité de couleur d'arrière-plan du clavier ajoutée. Les versions plus anciennes du système utilisent un flou. Réduire la transparence utilise toujours un arrière-plan opaque."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התאם את הרקע של המקלדת המנותקת. \"שקופה\" חושפת יותר תוכן; \"אטומה\" מבטלת את השקיפות. \"עוצמת הגוון\" קובעת כמה מצבע הרקע של המקלדת מתווסף. גרסאות ישנות יותר של המערכת משתמשות בטשטוש. \"הפחתת שקיפות\" תמיד משתמשת ברקע אטום."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A leválasztott billentyűzet hátterének testreszabása. Az Átlátszó több tartalmat enged látni, a Tömör megszünteti az átlátszóságot. Az Árnyalat erőssége azt szabályozza, mennyi kerül hozzá a billentyűzet háttérszínéből. A régebbi rendszerverziók elmosást használnak. Az Átlátszóság csökkentése esetén a háttér mindig tömör."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizza lo sfondo della tastiera staccata. Trasparente lascia intravedere più contenuto; Pieno elimina la trasparenza. Intensità della tinta regola quanto colore di sfondo della tastiera viene aggiunto. Le versioni meno recenti del sistema usano la sfocatura. Riduci trasparenza usa sempre uno sfondo pieno."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フローティングキーボードの背景をカスタマイズします。クリアにすると背後のコンテンツがより見えるようになり、ソリッドにすると透過がなくなります。「色合いの強さ」では、キーボードの背景色をどの程度加えるかを調整します。以前のバージョンのシステムではぼかしが使われます。「透明度を下げる」がオンの場合は、常に不透明な背景になります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "분리된 키보드의 배경을 사용자화합니다. 클리어는 뒤쪽 콘텐츠를 더 많이 비추고, 솔리드는 투명도를 제거합니다. 색조 강도는 키보드 배경색이 적용되는 정도를 조절합니다. 이전 버전의 시스템에서는 흐림 효과를 사용합니다. 투명도 감소가 켜져 있으면 항상 불투명한 배경을 사용합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilpass bakgrunnen til det løsnede tastaturet. Klart viser mer av innholdet bak, mens Heldekkende fjerner gjennomsiktigheten. Fargeintensitet justerer hvor mye av tastaturets bakgrunnsfarge som legges til. Eldre systemversjoner bruker uskarphet. Reduser gjennomsiktighet gir alltid en heldekkende bakgrunn."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de achtergrond van het losgekoppelde toetsenbord aan. Helder laat meer inhoud doorschijnen; Dekkend verwijdert de transparantie. Tintsterkte bepaalt hoeveel van de achtergrondkleur van het toetsenbord wordt toegevoegd. Oudere systeemversies gebruiken vervaging. Met 'Verminder transparantie' wordt altijd een dekkende achtergrond gebruikt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dostosuj tło odłączonej klawiatury. „Zwykłe” odsłania więcej treści, a „Nieprzezroczyste” usuwa przezroczystość. Siła odcienia decyduje o tym, ile koloru tła klawiatury zostaje dodane. Starsze wersje systemu używają rozmycia. Przy włączonej opcji „Ogranicz przezroczystość” tło jest zawsze nieprzezroczyste."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalize o fundo do teclado desencaixado. Transparente revela mais conteúdo; Opaco elimina a transparência. Intensidade do matiz ajusta quanto da cor de fundo do teclado é aplicada. Versões mais antigas do sistema usam desfoque. Reduzir Transparência sempre usa um fundo opaco."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalize o fundo do teclado desencaixado. Transparente revela mais conteúdo; Opaco elimina a transparência. A Intensidade do matiz ajusta a quantidade de cor de fundo aplicada ao teclado. As versões mais antigas do sistema usam desfoque. Com Reduzir Transparência, o fundo é sempre opaco."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizează fundalul tastaturii detașate. Transparent lasă la vedere mai mult conținut, iar Opac elimină transparența. Intensitatea nuanței stabilește cât din culoarea de fundal a tastaturii este adăugată. Versiunile mai vechi ale sistemului folosesc estomparea. Reducere transparență folosește întotdeauna un fundal opac."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prilagodite ozadje ločene tipkovnice. Prozorno razkrije več vsebine, Polno odstrani prosojnost. Jakost odtenka določa, koliko barve ozadja tipkovnice se doda. Starejše različice sistema uporabljajo zameglitev. Pri vklopljeni možnosti Zmanjšaj prosojnost je ozadje vedno polno."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anpassa bakgrunden för det lösgjorda tangentbordet. Klar visar mer innehåll, Heltäckande tar bort transparensen. Nyansstyrka justerar hur mycket av tangentbordets bakgrundsfärg som läggs till. Äldre systemversioner använder oskärpa. Minska transparens ger alltid en heltäckande bakgrund."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштуйте тло відкріпленої клавіатури. «Прозоре» показує більше вмісту, «Суцільне» вилучає прозорість. «Інтенсивність відтінку» визначає, скільки кольору тла клавіатури додається. Старіші версії системи використовують розмиття. За увімкненого параметра «Зменшення прозорості» тло завжди суцільне."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tùy chỉnh nền của bàn phím tách rời. Trong suốt để lộ nhiều nội dung hơn; Đặc loại bỏ độ trong suốt. Độ đậm sắc thái điều chỉnh lượng màu nền của bàn phím được thêm vào. Các phiên bản hệ thống cũ hơn sử dụng hiệu ứng làm mờ. Giảm độ trong suốt luôn dùng nền đặc."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定浮动键盘的背景。“清透”可透出更多内容，“不透明”则取消透明效果。“着色强度”用于调整键盘背景色的叠加程度。较旧版本的系统使用模糊效果。开启“减弱透明度”后将始终使用不透明背景。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂分離鍵盤的背景。「透明」會顯示更多內容，「不透明」則移除透明效果。「著色強度」可調整加入多少鍵盤背景色。較舊版本的系統會改用模糊效果。開啟「降低透明度」時一律使用不透明背景。"
           }
         }
       }
@@ -232964,7 +233119,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -298033,7 +298188,7 @@
       }
     },
     "Failed" : {
-      "comment" : "Tailscale SSH egress state",
+      "comment" : "Local SSH agent audit outcome\nTailscale SSH egress state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -363691,7 +363846,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -365857,7 +366012,7 @@
       }
     },
     "Import" : {
-      "comment" : "Import button",
+      "comment" : "External agent identity import button\nImport button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -415916,7 +416071,7 @@
       }
     },
     "Last Used" : {
-      "comment" : "VPN quick connect: caption above the last VPN's name",
+      "comment" : "Local SSH agent client rule last used label\nVPN quick connect: caption above the last VPN's name",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -433211,7 +433366,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Setting title",
+      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -438611,6 +438766,314 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "長按以顯示動作 · 點一下「選取」以選擇多個項目"
+          }
+        }
+      }
+    },
+    "Long-press the keyboard switch key and choose Detached to float a smaller keyboard over the terminal, freeing the rest of the screen. Drag the … handle to move it. Double-tap the handle or choose Docked to dock." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضغط مطولًا على مفتاح تبديل لوحة المفاتيح واختر «منفصلة» لتعويم لوحة مفاتيح أصغر فوق الطرفية وتحرير بقية الشاشة. اسحب مقبض … لتحريكها. اضغط مرتين على المقبض أو اختر «مرسوة» للإرساء."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén premuda la tecla de canvi de teclat i tria «Desacoblat» per fer flotar un teclat més petit sobre el terminal i alliberar la resta de la pantalla. Arrossega el tirador … per moure'l. Toca el tirador dues vegades o tria «Acoblat» per acoblar-lo."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podržte klávesu pro přepnutí klávesnice a zvolte Odpojená, aby se nad terminálem zobrazila menší plovoucí klávesnice a uvolnil se zbytek obrazovky. Tažením za úchyt … ji přesunete. Dvojitým klepnutím na úchyt nebo volbou Ukotvená ji ukotvíte."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold tasten til skift af tastatur nede, og vælg Frigjort for at lade et mindre tastatur flyde over terminalen, så resten af skærmen frigøres. Træk i …-håndtaget for at flytte det. Tryk to gange på håndtaget, eller vælg Fastgjort for at fastgøre det."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halten Sie die Taste zum Wechseln der Tastatur gedrückt und wählen Sie „Abgelöst“, um eine kleinere Tastatur über dem Terminal schweben zu lassen und den restlichen Bildschirm freizugeben. Ziehen Sie am Griff …, um sie zu bewegen. Doppeltippen Sie auf den Griff oder wählen Sie „Angedockt“, um sie anzudocken."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén pulsada la tecla de cambio de teclado y elige «Desacoplado» para que un teclado más pequeño flote sobre el terminal y deje libre el resto de la pantalla. Arrastra el tirador … para moverlo. Toca dos veces el tirador o elige «Acoplado» para acoplarlo."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paina pitkään näppäimistön vaihtonäppäintä ja valitse Irrotettu, niin pienempi näppäimistö kelluu terminaalin päällä ja muu näyttö vapautuu. Siirrä sitä vetämällä …-kahvasta. Kiinnitä se kaksoisnapauttamalla kahvaa tai valitsemalla Kiinnitetty."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenez la touche de changement de clavier enfoncée et choisissez Détaché pour faire flotter un clavier plus petit au-dessus du terminal et libérer le reste de l'écran. Faites glisser la poignée … pour le déplacer. Touchez deux fois la poignée ou choisissez Ancré pour l'ancrer."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לחץ לחיצה ארוכה על מקש החלפת המקלדת ובחר \"מנותקת\" כדי להציף מקלדת קטנה יותר מעל המסוף ולפנות את שאר המסך. גרור את הידית … כדי להזיז אותה. הקש פעמיים על הידית או בחר \"מעוגנת\" כדי לעגן."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tartsa nyomva a billentyűzetváltó billentyűt, és válassza a Leválasztott lehetőséget, hogy egy kisebb billentyűzet lebegjen a terminál fölött, a képernyő többi része pedig szabadon maradjon. Az áthelyezéséhez húzza a … fogantyút. A dokkoláshoz koppintson duplán a fogantyúra, vagy válassza a Dokkolt lehetőséget."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuto il tasto di cambio tastiera e scegli Staccata per far fluttuare una tastiera più piccola sopra il terminale, liberando il resto dello schermo. Trascina la maniglia … per spostarla. Tocca due volte la maniglia o scegli Ancorata per ancorarla."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボード切り替えキーを長押しして「フローティング」を選択すると、小さなキーボードがターミナルの上にフローティング表示され、画面の残りの部分を広く使えます。「…」ハンドルをドラッグすると移動できます。ハンドルをダブルタップするか「ドッキング」を選択するとドッキングします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드 전환 키를 길게 누르고 분리를 선택하면 더 작은 키보드가 터미널 위에 떠 있어 나머지 화면을 넓게 쓸 수 있습니다. … 핸들을 드래그하여 위치를 옮기고, 핸들을 이중 탭하거나 고정을 선택하면 고정됩니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold inne tastaturbytte-tasten og velg Løsnet for å la et mindre tastatur flyte over terminalen og frigjøre resten av skjermen. Dra i …-håndtaket for å flytte det. Dobbelttrykk på håndtaket eller velg Festet for å feste det."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd de toetsenbordwisseltoets ingedrukt en kies 'Losgekoppeld' om een kleiner toetsenbord boven de terminal te laten zweven, zodat de rest van het scherm vrijkomt. Sleep de greep … om het te verplaatsen. Dubbeltik op de greep of kies 'Vastgekoppeld' om het vast te koppelen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przytrzymaj klawisz przełączania klawiatury i wybierz „Odłączona”, aby nad terminalem unosiła się mniejsza klawiatura, a reszta ekranu pozostała wolna. Przeciągnij uchwyt …, aby ją przesunąć. Dotknij uchwytu dwukrotnie lub wybierz „Zadokowana”, aby ją zadokować."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha pressionada a tecla de troca de teclado e escolha Desencaixado para deixar um teclado menor flutuando sobre o terminal e liberar o resto da tela. Arraste a alça … para movê-lo. Toque duas vezes na alça ou escolha Encaixado para encaixá-lo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha premida a tecla de mudança de teclado e escolha Desencaixado para que um teclado mais pequeno flutue sobre o terminal e liberte o resto do ecrã. Arraste a pega … para o mover. Toque duas vezes na pega ou escolha Encaixado para o encaixar."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ține apăsată tasta de comutare a tastaturii și alege „Detașată” pentru ca o tastatură mai mică să plutească deasupra terminalului, eliberând restul ecranului. Trage de mânerul … pentru a o muta. Atinge mânerul de două ori sau alege „Andocată” pentru a o andoca."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pridržite tipko za preklop tipkovnice in izberite Ločena, da nad terminalom zaplava manjša tipkovnica in sprosti preostanek zaslona. Za premikanje povlecite ročico …. Za sidranje dvakrat tapnite ročico ali izberite Zasidrana."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Håll ned tangentbordsbytartangenten och välj Lösgjort för att låta ett mindre tangentbord flyta över terminalen och frigöra resten av skärmen. Dra i handtaget … för att flytta det. Dubbeltryck på handtaget eller välj Dockat för att docka."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утримуйте клавішу перемикання клавіатури й виберіть «Відкріплена», щоб над терміналом з’явилася менша плаваюча клавіатура, а решта екрана звільнилася. Перетягуйте маркер …, щоб перемістити її. Торкніться маркера двічі або виберіть «Закріплена», щоб закріпити її."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhấn giữ phím chuyển bàn phím rồi chọn Tách rời để thả nổi một bàn phím nhỏ hơn trên terminal, giải phóng phần còn lại của màn hình. Kéo tay cầm … để di chuyển bàn phím. Chạm hai lần vào tay cầm hoặc chọn Cố định để cố định."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长按键盘切换键并选择“浮动”，即可在终端上方浮动显示较小的键盘，腾出屏幕的其余空间。拖移“…”手柄可移动键盘。连按两下手柄或选择“停靠”即可停靠。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長按鍵盤切換鍵並選擇「分離」，即可在終端機上方浮動顯示較小的鍵盤，騰出螢幕的其餘空間。拖移「…」控點可移動鍵盤。點兩下控點或選擇「停駐」即可停駐。"
+          }
+        }
+      }
+    },
+    "Long-press the keyboard switch key and choose Detached to float a smaller keyboard over the terminal. Choose Docked to put it back." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضغط مطولًا على مفتاح تبديل لوحة المفاتيح واختر «منفصلة» لتعويم لوحة مفاتيح أصغر فوق الطرفية. واختر «مرسوة» لإعادتها."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén premuda la tecla de canvi de teclat i tria «Desacoblat» per fer flotar un teclat més petit sobre el terminal. Tria «Acoblat» per tornar-lo al seu lloc."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podržte klávesu pro přepnutí klávesnice a zvolte Odpojená, aby se nad terminálem zobrazila menší plovoucí klávesnice. Volbou Ukotvená ji vrátíte zpět."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold tasten til skift af tastatur nede, og vælg Frigjort for at lade et mindre tastatur flyde over terminalen. Vælg Fastgjort for at sætte det tilbage."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halten Sie die Taste zum Wechseln der Tastatur gedrückt und wählen Sie „Abgelöst“, um eine kleinere Tastatur über dem Terminal schweben zu lassen. Wählen Sie „Angedockt“, um sie wieder anzudocken."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén pulsada la tecla de cambio de teclado y elige «Desacoplado» para que un teclado más pequeño flote sobre el terminal. Elige «Acoplado» para volver a colocarlo."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paina pitkään näppäimistön vaihtonäppäintä ja valitse Irrotettu, niin pienempi näppäimistö kelluu terminaalin päällä. Palauta se valitsemalla Kiinnitetty."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenez la touche de changement de clavier enfoncée et choisissez Détaché pour faire flotter un clavier plus petit au-dessus du terminal. Choisissez Ancré pour le remettre en place."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לחץ לחיצה ארוכה על מקש החלפת המקלדת ובחר \"מנותקת\" כדי להציף מקלדת קטנה יותר מעל המסוף. בחר \"מעוגנת\" כדי להחזיר אותה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tartsa nyomva a billentyűzetváltó billentyűt, és válassza a Leválasztott lehetőséget, hogy egy kisebb billentyűzet lebegjen a terminál fölött. A visszaállításhoz válassza a Dokkolt lehetőséget."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuto il tasto di cambio tastiera e scegli Staccata per far fluttuare una tastiera più piccola sopra il terminale. Scegli Ancorata per riportarla in posizione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボード切り替えキーを長押しして「フローティング」を選択すると、小さなキーボードがターミナルの上にフローティング表示されます。元に戻すには「ドッキング」を選択します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드 전환 키를 길게 누르고 분리를 선택하면 더 작은 키보드가 터미널 위에 떠 있습니다. 다시 되돌리려면 고정을 선택하십시오."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold inne tastaturbytte-tasten og velg Løsnet for å la et mindre tastatur flyte over terminalen. Velg Festet for å sette det tilbake."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd de toetsenbordwisseltoets ingedrukt en kies 'Losgekoppeld' om een kleiner toetsenbord boven de terminal te laten zweven. Kies 'Vastgekoppeld' om het terug te zetten."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przytrzymaj klawisz przełączania klawiatury i wybierz „Odłączona”, aby nad terminalem unosiła się mniejsza klawiatura. Wybierz „Zadokowana”, aby ją przywrócić."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha pressionada a tecla de troca de teclado e escolha Desencaixado para deixar um teclado menor flutuando sobre o terminal. Escolha Encaixado para voltar ao normal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha premida a tecla de mudança de teclado e escolha Desencaixado para que um teclado mais pequeno flutue sobre o terminal. Escolha Encaixado para o repor."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ține apăsată tasta de comutare a tastaturii și alege „Detașată” pentru ca o tastatură mai mică să plutească deasupra terminalului. Alege „Andocată” pentru a o readuce la loc."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pridržite tipko za preklop tipkovnice in izberite Ločena, da nad terminalom zaplava manjša tipkovnica. Za vrnitev izberite Zasidrana."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Håll ned tangentbordsbytartangenten och välj Lösgjort för att låta ett mindre tangentbord flyta över terminalen. Välj Dockat för att sätta tillbaka det."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утримуйте клавішу перемикання клавіатури й виберіть «Відкріплена», щоб над терміналом з’явилася менша плаваюча клавіатура. Виберіть «Закріплена», щоб повернути її на місце."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhấn giữ phím chuyển bàn phím rồi chọn Tách rời để thả nổi một bàn phím nhỏ hơn trên terminal. Chọn Cố định để đưa bàn phím trở lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长按键盘切换键并选择“浮动”，即可在终端上方浮动显示较小的键盘。选择“停靠”即可复原。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長按鍵盤切換鍵並選擇「分離」，即可在終端機上方浮動顯示較小的鍵盤。選擇「停駐」即可還原。"
           }
         }
       }
@@ -466879,7 +467342,7 @@
       }
     },
     "Name" : {
-      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nStorage metadata field name placeholder\nStorage provider field",
+      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nLocal SSH agent client rule identity name label\nStorage metadata field name placeholder\nStorage provider field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -498994,7 +499457,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nHTTP capture: no host decrypted\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -509201,7 +509664,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nScreen Sharing clipboard sync default\nSetting value display\nSettings VPN row: nothing running\nSettings status: disabled\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -509820,7 +510283,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nSettings status: enabled\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -538097,7 +538560,7 @@
       }
     },
     "Path" : {
-      "comment" : "Storage addressing style: bucket in the URL path",
+      "comment" : "Local SSH agent client rule identity path label\nStorage addressing style: bucket in the URL path",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -545667,6 +546130,7 @@
       }
     },
     "Pinch inward on the docked terminal keyboard to make it float. Spread two fingers apart on the floating keyboard to dock it again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -545816,6 +546280,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在停駐的終端機鍵盤上向內捏合，即可讓它浮動。在浮動鍵盤上將兩指向外撥開，即可再次停駐。"
+          }
+        }
+      }
+    },
+    "Pinch inward on the docked terminal keyboard to make it float. Spread two fingers apart on the floating keyboard to dock it again. You can also long-press the keyboard switch key and choose Docked or Detached." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اقرص للداخل على لوحة مفاتيح الطرفية المرسوّة لجعلها عائمة. وباعد بين إصبعين على لوحة المفاتيح العائمة لإعادة إرسائها. يمكنك أيضًا الضغط مطولًا على مفتاح تبديل لوحة المفاتيح واختيار «مرسوة» أو «منفصلة»."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pessiga cap endins sobre el teclat del terminal acoblat per fer-lo flotar. Separa dos dits sobre el teclat flotant per tornar-lo a acoblar. També pots mantenir premuda la tecla de canvi de teclat i triar «Acoblat» o «Desacoblat»."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stažením prstů k sobě na ukotvené klávesnici terminálu ji necháte plovoucí. Roztažením dvou prstů na plovoucí klávesnici ji znovu ukotvíte. Můžete také podržet klávesu pro přepnutí klávesnice a zvolit Ukotvená nebo Odpojená."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Knib indad på det fastgjorte terminaltastatur for at frigøre det. Spred to fingre på det flydende tastatur for at fastgøre det igen. Du kan også holde tasten til skift af tastatur nede og vælge Fastgjort eller Frigjort."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziehen Sie zwei Finger auf der angedockten Terminal-Tastatur zusammen, um sie abzulösen. Spreizen Sie zwei Finger auf der schwebenden Tastatur, um sie wieder anzudocken. Sie können auch die Taste zum Wechseln der Tastatur gedrückt halten und „Angedockt“ oder „Abgelöst“ wählen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Junta dos dedos sobre el teclado del terminal acoplado para desacoplarlo. Separa dos dedos sobre el teclado flotante para volver a acoplarlo. También puedes mantener pulsada la tecla de cambio de teclado y elegir «Acoplado» o «Desacoplado»."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nipistä kiinnitettyä terminaalinäppäimistöä sisäänpäin, niin se alkaa kellua. Kiinnitä se takaisin levittämällä kahta sormea kelluvalla näppäimistöllä. Voit myös painaa pitkään näppäimistön vaihtonäppäintä ja valita Kiinnitetty tai Irrotettu."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pincez vers l'intérieur sur le clavier du terminal ancré pour le faire flotter. Écartez deux doigts sur le clavier flottant pour l'ancrer à nouveau. Vous pouvez aussi maintenir la touche de changement de clavier enfoncée et choisir Ancré ou Détaché."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "צבוט פנימה על מקלדת המסוף המעוגנת כדי להפוך אותה לצפה. הרחק שתי אצבעות על המקלדת הצפה כדי לעגן אותה מחדש. אפשר גם ללחוץ לחיצה ארוכה על מקש החלפת המקלדת ולבחור \"מעוגנת\" או \"מנותקת\"."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Csippentsen befelé a dokkolt terminálbillentyűzeten a leválasztásához. Húzza szét két ujját a lebegő billentyűzeten az ismételt dokkoláshoz. A billentyűzetváltó billentyűt nyomva tartva a Dokkolt vagy a Leválasztott lehetőséget is választhatja."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pizzica verso l'interno sulla tastiera del terminale ancorata per staccarla. Allarga due dita sulla tastiera mobile per ancorarla di nuovo. Puoi anche tenere premuto il tasto di cambio tastiera e scegliere Ancorata o Staccata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ドッキングされたターミナルキーボードをピンチインすると、フローティング表示になります。フローティングキーボードで2本指を広げると、再びドッキングします。キーボード切り替えキーを長押しして「ドッキング」または「フローティング」を選択することもできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고정된 터미널 키보드에서 두 손가락을 모으면 키보드가 떠오릅니다. 플로팅 키보드에서 두 손가락을 벌리면 다시 고정됩니다. 키보드 전환 키를 길게 누른 다음 고정 또는 분리를 선택할 수도 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Knip sammen på det festede terminaltastaturet for å løsne det. Spre to fingre på det flytende tastaturet for å feste det igjen. Du kan også holde inne tastaturbytte-tasten og velge Festet eller Løsnet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Knijp naar binnen op het vastgekoppelde terminaltoetsenbord om het te laten zweven. Spreid twee vingers op het zwevende toetsenbord om het weer vast te koppelen. Je kunt ook de toetsenbordwisseltoets ingedrukt houden en 'Vastgekoppeld' of 'Losgekoppeld' kiezen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zsuń palce na zadokowanej klawiaturze terminala, aby ją odłączyć. Rozsuń dwa palce na pływającej klawiaturze, aby ją ponownie zadokować. Możesz też przytrzymać klawisz przełączania klawiatury i wybrać „Zadokowana” lub „Odłączona”."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Junte dois dedos no teclado do terminal encaixado para desencaixá-lo. Afaste dois dedos no teclado flutuante para encaixá-lo novamente. Você também pode manter pressionada a tecla de troca de teclado e escolher Encaixado ou Desencaixado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Junte dois dedos no teclado do terminal encaixado para o desencaixar. Afaste dois dedos no teclado flutuante para o voltar a encaixar. Também pode manter premida a tecla de mudança de teclado e escolher Encaixado ou Desencaixado."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apropie două degete pe tastatura de terminal andocată pentru a o detașa. Depărtează două degete pe tastatura flotantă pentru a o andoca din nou. De asemenea, poți ține apăsată tasta de comutare a tastaturii și alege „Andocată” sau „Detașată”."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uščipnite navznoter na zasidrani tipkovnici terminala, da začne plavati. Razmaknite dva prsta na plavajoči tipkovnici, da jo znova zasidrate. Lahko tudi pridržite tipko za preklop tipkovnice in izberete Zasidrana ali Ločena."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nyp ihop på det dockade terminaltangentbordet för att lösgöra det. Dra isär två fingrar på det flytande tangentbordet för att docka det igen. Du kan också hålla ned tangentbordsbytartangenten och välja Dockat eller Lösgjort."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зведіть пальці на закріпленій клавіатурі термінала, щоб відкріпити її. Розведіть два пальці на плаваючій клавіатурі, щоб закріпити її знову. Також можна утримувати клавішу перемикання клавіатури й вибрати «Закріплена» або «Відкріплена»."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chụm hai ngón tay vào trong trên bàn phím terminal đang cố định để thả nổi nó. Mở rộng hai ngón tay trên bàn phím nổi để cố định lại. Bạn cũng có thể nhấn giữ phím chuyển bàn phím rồi chọn Cố định hoặc Tách rời."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在已停靠的终端键盘上向内捏合，即可让它浮动。在浮动键盘上张开两指，即可再次将其停靠。也可以长按键盘切换键，然后选择“停靠”或“浮动”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在停駐的終端機鍵盤上向內捏合，即可讓它浮動。在浮動鍵盤上將兩指向外撥開，即可再次停駐。也可以長按鍵盤切換鍵，然後選擇「停駐」或「分離」。"
           }
         }
       }
@@ -594007,7 +594625,7 @@
       }
     },
     "Remove" : {
-      "comment" : "Storage metadata: remove field",
+      "comment" : "Local SSH agent audit action\nStorage metadata: remove field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -704972,7 +705590,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Setting group title",
+      "comment" : "Agent key section header\nSetting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -733085,6 +733703,7 @@
       }
     },
     "Symbols" : {
+      "comment" : "Key tab: punctuation and symbol keys",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -843380,7 +843999,162 @@
         }
       }
     },
+    "Use iPadOS’s floating keyboard container so the keyboard can move beyond the app window. Drag the … handle to move it. To float or dock in this mode, switch to Apple’s keyboard, change its placement, then switch back using the toolbar’s keyboard button. Turn this off to keep the detached keyboard inside rootshell and use pinch gestures on our keyboard." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدم حاوية لوحة المفاتيح العائمة في iPadOS كي تتمكن لوحة المفاتيح من التحرك خارج نافذة التطبيق. اسحب مقبض … لتحريكها. للتعويم أو الإرساء في هذا الوضع، بدّل إلى لوحة مفاتيح Apple وغيّر موضعها، ثم عُد باستخدام زر لوحة المفاتيح في شريط الأدوات. أوقف هذا الخيار لإبقاء لوحة المفاتيح المنفصلة داخل rootshell واستخدام إيماءات القرص على لوحة مفاتيحنا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilitza el contenidor de teclat flotant d'iPadOS perquè el teclat es pugui moure fora de la finestra de l'app. Arrossega el tirador … per moure'l. Per fer-lo flotar o acoblar-lo en aquest mode, canvia al teclat d'Apple, canvia'n la ubicació i després torna enrere amb el botó de teclat de la barra d'eines. Desactiva aquesta opció per mantenir el teclat desacoblat dins de rootshell i fer servir gestos de pinçament al nostre teclat."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použije plovoucí kontejner klávesnice systému iPadOS, takže se klávesnice může pohybovat i mimo okno aplikace. Tažením za úchyt … ji přesunete. Chcete-li v tomto režimu klávesnici odpojit nebo ukotvit, přepněte na klávesnici Apple, změňte její umístění a pak se pomocí tlačítka klávesnice na panelu nástrojů přepněte zpět. Vypnutím ponecháte odpojenou klávesnici uvnitř aplikace rootshell a budete moci používat gesta stažení prstů na naší klávesnici."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug iPadOS’ beholder til flydende tastaturer, så tastaturet kan flyttes uden for appens vindue. Træk i …-håndtaget for at flytte det. Hvis du vil frigøre eller fastgøre tastaturet i denne tilstand, skal du skifte til Apples tastatur, ændre dets placering og derefter skifte tilbage med tastaturknappen på værktøjslinjen. Slå funktionen fra for at beholde det frigjorte tastatur inde i rootshell og bruge knibebevægelser på vores tastatur."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwendet den schwebenden Tastaturcontainer von iPadOS, damit sich die Tastatur über das App-Fenster hinaus bewegen lässt. Ziehen Sie am Griff …, um sie zu bewegen. Zum Ablösen oder Andocken in diesem Modus wechseln Sie zu Apples Tastatur, ändern dort die Position und wechseln anschließend über die Tastaturtaste in der Symbolleiste zurück. Deaktivieren Sie die Option, um die abgelöste Tastatur innerhalb von rootshell zu halten und Pinch-Gesten auf unserer Tastatur zu verwenden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa el contenedor de teclado flotante de iPadOS para que el teclado pueda moverse fuera de la ventana de la app. Arrastra el tirador … para moverlo. Para desacoplarlo o acoplarlo en este modo, cambia al teclado de Apple, modifica su posición y vuelve al nuestro con el botón de teclado de la barra de herramientas. Desactiva esta opción para mantener el teclado desacoplado dentro de rootshell y usar gestos de pellizco en nuestro teclado."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käyttää iPadOSin kelluvaa näppäimistösäiliötä, jolloin näppäimistö voi liikkua sovellusikkunan ulkopuolelle. Siirrä sitä vetämällä …-kahvasta. Tässä tilassa irrotat tai kiinnität näppäimistön vaihtamalla Applen näppäimistöön, muuttamalla sen sijaintia ja palaamalla takaisin työkalupalkin näppäimistöpainikkeella. Poista asetus käytöstä, jos haluat pitää irrotetun näppäimistön rootshellin sisällä ja käyttää nipistyseleitä sen omassa näppäimistössä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilise le conteneur de clavier flottant d'iPadOS afin que le clavier puisse sortir de la fenêtre de l'app. Faites glisser la poignée … pour le déplacer. Dans ce mode, pour faire flotter ou ancrer le clavier, passez au clavier d'Apple, modifiez sa position, puis revenez en arrière à l'aide du bouton clavier de la barre d'outils. Désactivez cette option pour conserver le clavier détaché dans rootshell et utiliser les gestes de pincement sur notre clavier."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השתמש במיכל המקלדת הצפה של iPadOS כדי שהמקלדת תוכל לנוע מעבר לחלון האפליקציה. גרור את הידית … כדי להזיז אותה. כדי להציף או לעגן במצב זה, עבור למקלדת של Apple, שנה את מיקומה וחזור בעזרת כפתור המקלדת שבסרגל הכלים. כבה אפשרות זו כדי להשאיר את המקלדת המנותקת בתוך rootshell ולהשתמש במחוות צביטה על המקלדת שלנו."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az iPadOS lebegő billentyűzettárolóját használja, így a billentyűzet az alkalmazás ablakán kívülre is mozgatható. Az áthelyezéséhez húzza a … fogantyút. Ebben a módban a leválasztáshoz vagy a dokkoláshoz váltson az Apple billentyűzetére, módosítsa annak elhelyezését, majd váltson vissza az eszköztár billentyűzetgombjával. Kapcsolja ki, ha a leválasztott billentyűzetet a rootshellen belül szeretné tartani, és csippentő mozdulatokat szeretne használni a saját billentyűzetünkön."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa il contenitore della tastiera mobile di iPadOS, così la tastiera può spostarsi oltre la finestra dell'app. Trascina la maniglia … per spostarla. In questa modalità, per staccarla o ancorarla passa alla tastiera Apple, cambiane la posizione, quindi torna indietro con il pulsante della tastiera nella barra strumenti. Disattiva questa opzione per mantenere la tastiera staccata all'interno di rootshell e usare i gesti di pizzico sulla nostra tastiera."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPadOSのフローティングキーボードの仕組みを使用し、キーボードをAppのウィンドウの外にも移動できるようにします。「…」ハンドルをドラッグすると移動できます。このモードでフローティングやドッキングに切り替えるには、Appleのキーボードに切り替えて配置を変更してから、ツールバーのキーボードボタンで元に戻します。オフにすると、フローティングキーボードはrootshell内に表示され、rootshellのキーボード上でピンチ操作を使えます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPadOS의 플로팅 키보드 컨테이너를 사용하여 앱 윈도우 밖으로도 키보드를 옮길 수 있습니다. … 핸들을 드래그하여 위치를 옮길 수 있습니다. 이 모드에서 키보드를 띄우거나 고정하려면 Apple 키보드로 전환하여 위치를 변경한 다음, 도구 막대의 키보드 버튼으로 다시 전환하십시오. 이 설정을 끄면 분리된 키보드가 rootshell 안에 유지되며, 키보드에서 핀치 제스처를 사용할 수 있습니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk den flytende tastaturbeholderen i iPadOS, slik at tastaturet kan flyttes utenfor appvinduet. Dra i …-håndtaket for å flytte det. For å løsne eller feste tastaturet i denne modusen bytter du til Apples tastatur, endrer plasseringen der og bytter tilbake med tastaturknappen på verktøylinjen. Slå dette av for å holde det løsnede tastaturet inne i rootshell og bruke knipebevegelser på vårt eget tastatur."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik de zwevende toetsenbordcontainer van iPadOS, zodat het toetsenbord zich buiten het appvenster kan bewegen. Sleep de greep … om het te verplaatsen. Schakel in deze modus over naar het Apple-toetsenbord om te laten zweven of vast te koppelen, wijzig de plaatsing daarvan en schakel daarna terug met de toetsenbordknop in de werkbalk. Schakel dit uit om het losgekoppelde toetsenbord binnen rootshell te houden en knijpgebaren op ons eigen toetsenbord te gebruiken."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Używa kontenera pływającej klawiatury iPadOS, dzięki czemu klawiatura może wyjść poza okno aplikacji. Przeciągnij uchwyt …, aby ją przesunąć. Aby w tym trybie odłączyć lub zadokować klawiaturę, przełącz się na klawiaturę Apple, zmień jej położenie, a następnie wróć, używając przycisku klawiatury na pasku narzędzi. Wyłącz tę opcję, aby odłączona klawiatura pozostawała w aplikacji rootshell i aby korzystać z gestów uszczypnięcia na naszej klawiaturze."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa o contêiner de teclado flutuante do iPadOS para que o teclado possa sair dos limites da janela do app. Arraste a alça … para movê-lo. Nesse modo, para desencaixar ou encaixar, mude para o teclado da Apple, altere a posição dele e volte usando o botão de teclado da barra de ferramentas. Desative para manter o teclado desencaixado dentro do rootshell e usar gestos de pinça no nosso teclado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa o contentor de teclado flutuante do iPadOS para que o teclado se possa mover para fora da janela da app. Arraste a pega … para o mover. Para desencaixar ou encaixar neste modo, mude para o teclado da Apple, altere a sua posição e volte a mudar através do botão de teclado da barra de ferramentas. Desative esta opção para manter o teclado desencaixado dentro do rootshell e usar gestos de pinça no nosso teclado."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosește containerul pentru tastatură flotantă din iPadOS, astfel încât tastatura să se poată deplasa dincolo de fereastra aplicației. Trage de mânerul … pentru a o muta. Pentru a detașa sau a andoca în acest mod, comută la tastatura Apple, schimbă-i poziția, apoi revino cu butonul de tastatură din bara de instrumente. Dezactivează opțiunea pentru a păstra tastatura detașată în rootshell și a folosi gesturi de ciupire pe tastatura noastră."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabi vsebnik plavajoče tipkovnice iPadOS, da se tipkovnica lahko premika zunaj okna aplikacije. Za premikanje povlecite ročico …. Za ločitev ali sidranje v tem načinu preklopite na Applovo tipkovnico, spremenite njeno postavitev in nato z gumbom za tipkovnico v orodni vrstici preklopite nazaj. To izklopite, če želite ločeno tipkovnico obdržati znotraj aplikacije rootshell in na naši tipkovnici uporabljati poteze s približevanjem prstov."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd iPadOS flytande tangentbordsbehållare så att tangentbordet kan flyttas utanför appfönstret. Dra i handtaget … för att flytta det. I det här läget lösgör eller dockar du tangentbordet genom att byta till Apples tangentbord, ändra dess placering och sedan byta tillbaka med tangentbordsknappen i verktygsfältet. Stäng av för att hålla det lösgjorda tangentbordet kvar i rootshell och använda nypgester på vårt tangentbord."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовує контейнер плаваючої клавіатури iPadOS, щоб клавіатура могла виходити за межі вікна програми. Перетягуйте маркер …, щоб перемістити її. Щоб у цьому режимі відкріпити або закріпити її, перемкніться на клавіатуру Apple, змініть її розташування, а потім поверніться назад кнопкою клавіатури на панелі інструментів. Вимкніть цей параметр, щоб відкріплена клавіатура залишалася в rootshell і підтримувала жести зведення пальців."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng vùng chứa bàn phím nổi của iPadOS để bàn phím có thể di chuyển ra ngoài cửa sổ ứng dụng. Kéo tay cầm … để di chuyển bàn phím. Để thả nổi hoặc cố định bàn phím trong chế độ này, hãy chuyển sang bàn phím của Apple, thay đổi vị trí của nó, rồi chuyển trở lại bằng nút bàn phím trên thanh công cụ. Hãy tắt tùy chọn này để giữ bàn phím tách rời bên trong rootshell và dùng cử chỉ chụm ngón tay trên bàn phím của chúng tôi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 iPadOS 的浮动键盘容器，让键盘可以移出 App 窗口。拖移“…”手柄可移动键盘。在此模式下，若要浮动或停靠键盘，请先切换到 Apple 键盘并更改其位置，然后通过工具栏中的键盘按钮切换回来。关闭后，浮动键盘将保持在 rootshell 内，并可在我们的键盘上使用捏合手势。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 iPadOS 的浮動鍵盤容器，讓鍵盤可以移出 App 視窗之外。拖移「…」控點可移動鍵盤。在此模式下若要浮動或停駐鍵盤，請先切換至 Apple 鍵盤、調整其位置，再以工具列的鍵盤按鈕切換回來。關閉此項目可將分離鍵盤保留在 rootshell 內，並直接在我們的鍵盤上使用捏合手勢。"
+          }
+        }
+      }
+    },
     "Use iPadOS’s floating keyboard container so the keyboard can move beyond the app window. To float or dock in this mode, switch to Apple’s keyboard, change its placement, then switch back using the toolbar’s keyboard button. Turn this off to keep the detached keyboard inside rootshell and use pinch gestures on our keyboard." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -872905,7 +873679,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -879384,7 +880158,162 @@
         }
       }
     },
+    "With Use System Detached Keyboard off, pinch inward or long-press the keyboard switch key and choose Detached to float the keyboard. Drag the … handle to move it. Spread two fingers, double-tap the handle, or choose Docked to dock. Docking hides the keys when a hardware keyboard is connected." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عند إيقاف «استخدام لوحة المفاتيح المنفصلة للنظام»، اقرص للداخل أو اضغط مطولًا على مفتاح تبديل لوحة المفاتيح واختر «منفصلة» لتعويم لوحة المفاتيح. اسحب مقبض … لتحريكها. باعد بين إصبعيك أو اضغط مرتين على المقبض أو اختر «مرسوة» للإرساء. ويؤدي الإرساء إلى إخفاء المفاتيح عند توصيل لوحة مفاتيح خارجية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amb «Utilitza el teclat desacoblat del sistema» desactivat, pessiga cap endins o mantén premuda la tecla de canvi de teclat i tria «Desacoblat» per fer flotar el teclat. Arrossega el tirador … per moure'l. Separa dos dits, toca el tirador dues vegades o tria «Acoblat» per acoblar-lo. En acoblar-lo, les tecles s'oculten si hi ha un teclat físic connectat."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Když je volba Použít systémovou odpojenou klávesnici vypnutá, klávesnici odpojíte stažením prstů k sobě nebo podržením klávesy pro přepnutí klávesnice a volbou Odpojená. Tažením za úchyt … ji přesunete. Roztažením dvou prstů, dvojitým klepnutím na úchyt nebo volbou Ukotvená ji ukotvíte. Po ukotvení se klávesy skryjí, pokud je připojena hardwarová klávesnice."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Når Brug systemets frigjorte tastatur er slået fra, kan du knibe indad eller holde tasten til skift af tastatur nede og vælge Frigjort for at frigøre tastaturet. Træk i …-håndtaget for at flytte det. Spred to fingre, tryk to gange på håndtaget, eller vælg Fastgjort for at fastgøre det. Fastgørelse skjuler tasterne, når der er tilsluttet et fysisk tastatur."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn „Systemeigene abgelöste Tastatur verwenden“ deaktiviert ist, ziehen Sie zwei Finger zusammen oder halten Sie die Taste zum Wechseln der Tastatur gedrückt und wählen Sie „Abgelöst“, um die Tastatur abzulösen. Ziehen Sie am Griff …, um sie zu bewegen. Spreizen Sie zwei Finger, doppeltippen Sie auf den Griff oder wählen Sie „Angedockt“, um sie anzudocken. Beim Andocken werden die Tasten ausgeblendet, wenn eine Hardware-Tastatur verbunden ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con «Usar el teclado desacoplado del sistema» desactivado, junta dos dedos sobre el teclado o mantén pulsada la tecla de cambio de teclado y elige «Desacoplado» para desacoplarlo. Arrastra el tirador … para moverlo. Separa dos dedos, toca dos veces el tirador o elige «Acoplado» para acoplarlo. Al acoplarlo, las teclas se ocultan si hay un teclado físico conectado."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kun Käytä järjestelmän irrotettua näppäimistöä on pois päältä, irrota näppäimistö nipistämällä sisäänpäin tai painamalla pitkään näppäimistön vaihtonäppäintä ja valitsemalla Irrotettu. Siirrä sitä vetämällä …-kahvasta. Kiinnitä se levittämällä kahta sormea, kaksoisnapauttamalla kahvaa tai valitsemalla Kiinnitetty. Kiinnittäminen piilottaa näppäimet, kun fyysinen näppäimistö on yhdistettynä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lorsque Utiliser le clavier détaché du système est désactivé, pincez vers l'intérieur ou maintenez la touche de changement de clavier enfoncée et choisissez Détaché pour faire flotter le clavier. Faites glisser la poignée … pour le déplacer. Écartez deux doigts, touchez deux fois la poignée ou choisissez Ancré pour l'ancrer. L'ancrage masque les touches lorsqu'un clavier physique est connecté."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כאשר \"השתמש במקלדת המנותקת של המערכת\" כבוי, צבוט פנימה או לחץ לחיצה ארוכה על מקש החלפת המקלדת ובחר \"מנותקת\" כדי להציף את המקלדת. גרור את הידית … כדי להזיז אותה. הרחק שתי אצבעות, הקש פעמיים על הידית או בחר \"מעוגנת\" כדי לעגן. עיגון מסתיר את המקשים כאשר מחוברת מקלדת חומרה."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ha a Rendszer leválasztott billentyűzetének használata ki van kapcsolva, a billentyűzet leválasztásához csippentsen befelé, vagy tartsa nyomva a billentyűzetváltó billentyűt, és válassza a Leválasztott lehetőséget. Az áthelyezéséhez húzza a … fogantyút. A dokkoláshoz húzza szét két ujját, koppintson duplán a fogantyúra, vagy válassza a Dokkolt lehetőséget. A dokkolás elrejti a billentyűket, ha hardveres billentyűzet van csatlakoztatva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con Usa la tastiera staccata di sistema disattivato, pizzica verso l'interno oppure tieni premuto il tasto di cambio tastiera e scegli Staccata per staccare la tastiera. Trascina la maniglia … per spostarla. Allarga due dita, tocca due volte la maniglia o scegli Ancorata per ancorarla. L'ancoraggio nasconde i tasti quando è collegata una tastiera fisica."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「システムのフローティングキーボードを使用」がオフのときは、ピンチインするか、キーボード切り替えキーを長押しして「フローティング」を選択すると、キーボードがフローティング表示になります。「…」ハンドルをドラッグすると移動できます。2本指を広げるか、ハンドルをダブルタップするか、「ドッキング」を選択するとドッキングします。ドッキング中にハードウェアキーボードが接続されていると、キーは非表示になります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 분리형 키보드 사용이 꺼져 있으면 두 손가락을 모으거나 키보드 전환 키를 길게 누르고 분리를 선택하여 키보드를 띄울 수 있습니다. … 핸들을 드래그하여 위치를 옮기고, 두 손가락을 벌리거나 핸들을 이중 탭하거나 고정을 선택하면 고정됩니다. 하드웨어 키보드가 연결된 상태에서 고정하면 키가 숨겨집니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Når Bruk systemets løsnede tastatur er slått av, kniper du sammen eller holder inne tastaturbytte-tasten og velger Løsnet for å løsne tastaturet. Dra i …-håndtaket for å flytte det. Spre to fingre, dobbelttrykk på håndtaket eller velg Festet for å feste det. Når tastaturet er festet, skjules tastene hvis et maskinvaretastatur er tilkoblet."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als 'Losgekoppeld systeemtoetsenbord gebruiken' uitstaat, knijp je naar binnen of houd je de toetsenbordwisseltoets ingedrukt en kies je 'Losgekoppeld' om het toetsenbord te laten zweven. Sleep de greep … om het te verplaatsen. Spreid twee vingers, dubbeltik op de greep of kies 'Vastgekoppeld' om het vast te koppelen. Bij vastkoppelen worden de toetsen verborgen als er een hardwaretoetsenbord is aangesloten."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy opcja „Używaj systemowej odłączonej klawiatury” jest wyłączona, uszczypnij do środka lub przytrzymaj klawisz przełączania klawiatury i wybierz „Odłączona”, aby odłączyć klawiaturę. Przeciągnij uchwyt …, aby ją przesunąć. Rozsuń dwa palce, dotknij uchwytu dwukrotnie lub wybierz „Zadokowana”, aby ją zadokować. Zadokowanie ukrywa klawisze, gdy podłączona jest klawiatura sprzętowa."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com Usar Teclado Desencaixado do Sistema desativado, junte dois dedos ou mantenha pressionada a tecla de troca de teclado e escolha Desencaixado para desencaixar o teclado. Arraste a alça … para movê-lo. Afaste dois dedos, toque duas vezes na alça ou escolha Encaixado para encaixá-lo. Ao encaixar, as teclas ficam ocultas quando há um teclado físico conectado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com a opção Usar Teclado Desencaixado do Sistema desativada, junte dois dedos ou mantenha premida a tecla de mudança de teclado e escolha Desencaixado para desencaixar o teclado. Arraste a pega … para o mover. Afaste dois dedos, toque duas vezes na pega ou escolha Encaixado para o encaixar. Ao encaixar, as teclas ficam ocultas quando está ligado um teclado físico."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Când „Folosește tastatura detașată a sistemului” este dezactivată, apropie două degete sau ține apăsată tasta de comutare a tastaturii și alege „Detașată” pentru a detașa tastatura. Trage de mânerul … pentru a o muta. Depărtează două degete, atinge mânerul de două ori sau alege „Andocată” pentru a o andoca. Andocarea ascunde tastele când este conectată o tastatură fizică."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ko je možnost Uporabi sistemsko ločeno tipkovnico izklopljena, tipkovnico ločite tako, da približate prsta ali pridržite tipko za preklop tipkovnice in izberete Ločena. Za premikanje povlecite ročico …. Za sidranje razmaknite prsta, dvakrat tapnite ročico ali izberite Zasidrana. Ko je priključena strojna tipkovnica, sidranje skrije tipke."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "När Använd systemets lösgjorda tangentbord är avstängt lösgör du tangentbordet genom att nypa ihop eller hålla ned tangentbordsbytartangenten och välja Lösgjort. Dra i handtaget … för att flytta det. Dra isär två fingrar, dubbeltryck på handtaget eller välj Dockat för att docka. Vid dockning döljs tangenterna när ett fysiskt tangentbord är anslutet."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Коли параметр «Використовувати системну відкріплену клавіатуру» вимкнено, зведіть пальці або утримуйте клавішу перемикання клавіатури й виберіть «Відкріплена», щоб відкріпити клавіатуру. Перетягуйте маркер …, щоб перемістити її. Розведіть два пальці, торкніться маркера двічі або виберіть «Закріплена», щоб закріпити її. Після закріплення клавіші приховуються, якщо підключено апаратну клавіатуру."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi Dùng bàn phím tách rời của hệ thống đang tắt, hãy chụm hai ngón tay vào trong hoặc nhấn giữ phím chuyển bàn phím rồi chọn Tách rời để thả nổi bàn phím. Kéo tay cầm … để di chuyển bàn phím. Mở rộng hai ngón tay, chạm hai lần vào tay cầm hoặc chọn Cố định để cố định. Khi được cố định, các phím sẽ ẩn đi nếu có bàn phím vật lý được kết nối."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭“使用系统浮动键盘”后，向内捏合，或长按键盘切换键并选择“浮动”，即可让键盘浮动。拖移“…”手柄可移动键盘。两指张开、连按两下手柄或选择“停靠”即可停靠。停靠后，如果已连接硬件键盘，按键将会隐藏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉「使用系統分離鍵盤」時，向內捏合，或長按鍵盤切換鍵並選擇「分離」，即可讓鍵盤浮動。拖移「…」控點可移動鍵盤。兩指向外撥開、點兩下控點或選擇「停駐」即可停駐。停駐後，若已連接硬體鍵盤，按鍵會自動隱藏。"
+          }
+        }
+      }
+    },
     "With Use System Detached Keyboard off, pinch inward to float the keyboard. Drag the … handle to move it. Spread two fingers or double-tap the handle to dock. Docking hides the keys when a hardware keyboard is connected." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
