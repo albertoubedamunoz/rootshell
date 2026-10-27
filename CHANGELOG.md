@@ -3,6 +3,37 @@
 All notable changes to the rootshell app for iPhone, iPad, Vision Pro, and Mac, newest first.
 Versions are listed as `release-build`, matching the version shown in Settings, About.
 
+## 1.0.15-172 - October 25, 2026
+
+### Detached Terminal Keyboard
+
+- **Floating Keyboard on iPhone:** The built-in Terminal Keyboard can now float over the terminal on iPhone and iPhone Duo. Long-press the keyboard switch key and choose Detached. Drag the ellipsis handle to move it.
+- **iPad Controls and Saved Position:** On iPad with Use System Detached Keyboard turned off, the same menu is available alongside pinch gestures. Detached placement and position are remembered on the device after relaunching rootshell.
+- **Layout and Appearance:** Detached keyboard previews and glass background settings are now available on iPhone. The floating layout has taller key rows, wider 123 and Return keys, and smaller, heavier capital letters. The Apple Keyboard switch key moves beside the handle at the bottom.
+
+### Keyboard Reliability
+
+- **iPad System Detached Keyboard:** Fixed the keyboard jumping back or becoming impossible to drag after resizing, switching apps, or detaching. The ellipsis handle now moves it using iPadOS's own keyboard handle.
+- **Drawer Resizing and Placement:** Opening and closing the toolbar drawer resizes the system detached keyboard without clipping keys or leaving a gap. The keyboard sits lower, matching Apple's floating keyboard placement.
+- **Keyboard Transitions:** Fixed a flash of the full-width keyboard before the detached keyboard appeared when focusing a terminal, returning to rootshell, or switching tabs.
+- **Menus, Joystick, and Backgrounds:** Fixed the detached keyboard's long-press menu also triggering a keyboard switch when lifting your finger. The arrow joystick accepts drag gestures in an overflow drawer row, and styled backgrounds cover swipe pages edge to edge.
+- **herdr Tab Restoration:** Fixed keyboard flicker and detached-keyboard dragging problems while herdr restores tabs at launch.
+
+### Custom Keys and Swipe Gestures
+
+- **Keyboard Protocol Support:** Fixed custom combinations such as Ctrl+Shift+[ and Ctrl+Shift+Space losing Shift in apps such as Neovim that use the kitty keyboard protocol. Custom toolbar keys and swipe bindings containing a single key combination now follow the terminal's keyboard protocol, matching hardware keyboard input. Multi-step sequences keep their existing ordering.
+
+### iPhone Duo
+
+- **Floating Keyboard Position:** The floating keyboard moves clear of the fold when released, where there is room. In iPhone landscape it can also move over the side controls.
+- **Focus Recovery:** Improved keyboard focus recovery when folding or unfolding. If focus is still lost, the floating keyboard stays visible and its next key press restores focus before typing.
+- **Status Bar:** Fixed the status bar stacking vertically under the camera when folding with the keyboard detached.
+
+### zmx Session Switching
+
+- **Switching and Restoration:** Switching zmx sessions in Exposé moves the selected pane's connection without moving other clients attached to the same session or typing attach commands into shell history. Reconnection and relaunch restore the session you switched to.
+- **Switch Readiness and Previews:** Session selections are ignored until switching is ready, preventing Exposé from closing without changing sessions. Switching again immediately after a local session switch is more reliable, and previews begin loading sooner.
+
 ## 1.0.15-171 - October 22, 2026
 
 ### tssh and Terminal Graphics
