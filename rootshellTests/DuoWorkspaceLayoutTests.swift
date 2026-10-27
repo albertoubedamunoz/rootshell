@@ -190,20 +190,18 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         let systemBar = CGRect(x: 276, y: 0, width: 190, height: 82)
         // The visible platter can hang below the camera's row.
         let platter = CGRect(x: 282, y: 6, width: 178, height: 66)
-        for context in [front(.belowCamera), DuoLayoutContext(hasHinge: true)] {
-            for rtl in [false, true] {
-                let layout = DuoWorkspaceLayout.resolve(
-                    bounds: display, safeFrame: safe, occlusions: [camera, systemBar], divisions: [],
-                    context: context, headerHeight: 44, rightToLeft: rtl,
-                    occlusionContentFrames: [camera, platter]
-                )
-                XCTAssertEqual(layout.headerInsets.top, platter.maxY)
-                XCTAssertEqual(layout.headerInsets.leading, 0)
-                XCTAssertEqual(layout.headerInsets.trailing, 0)
-                XCTAssertEqual(layout.cameraClearance, 0)
-                XCTAssertEqual(layout.terminalInsets, EdgeInsets())
-                XCTAssertFalse(layout.headerSharesTopBand)
-            }
+        for rtl in [false, true] {
+            let layout = DuoWorkspaceLayout.resolve(
+                bounds: display, safeFrame: safe, occlusions: [camera, systemBar], divisions: [],
+                context: front(.belowCamera), headerHeight: 44, rightToLeft: rtl,
+                occlusionContentFrames: [camera, platter]
+            )
+            XCTAssertEqual(layout.headerInsets.top, platter.maxY)
+            XCTAssertEqual(layout.headerInsets.leading, 0)
+            XCTAssertEqual(layout.headerInsets.trailing, 0)
+            XCTAssertEqual(layout.cameraClearance, 0)
+            XCTAssertEqual(layout.terminalInsets, EdgeInsets())
+            XCTAssertFalse(layout.headerSharesTopBand)
         }
     }
 
@@ -250,19 +248,24 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
     }
 
     func testUnfoldedHeaderSharesStatusBandForEveryFrontDisplayPreference() {
-        let display = CGRect(x: 0, y: 0, width: 960, height: 680)
-        let safe = CGRect(x: 0, y: 88, width: 960, height: 558)
-        let reserved = CGRect(x: 830, y: 20, width: 130, height: 68)
-        for mode in DuoFrontDisplayMode.allCases {
-            let context = DuoLayoutContext(hasHinge: true, frontMode: mode)
-            XCTAssertTrue(context.placesHeaderBesideTopRegions)
-            let layout = DuoWorkspaceLayout.resolve(
-                bounds: display, safeFrame: safe, occlusions: [reserved], divisions: [],
-                context: context, headerHeight: 44
-            )
-            XCTAssertEqual(layout.headerInsets.top + 44, reserved.maxY)
-            XCTAssertEqual(layout.headerInsets.trailing, 130)
-            XCTAssertEqual(layout.headerInsets.top + 44 + layout.cameraClearance, reserved.maxY)
+        // The inner display has room beside the status band in either orientation.
+        for portrait in [false, true] {
+            let width: CGFloat = portrait ? 680 : 960
+            let display = CGRect(x: 0, y: 0, width: width, height: portrait ? 960 : 680)
+            let safe = CGRect(x: 0, y: 88, width: width, height: display.height - 122)
+            let reserved = CGRect(x: width - 130, y: 20, width: 130, height: 68)
+            for mode in DuoFrontDisplayMode.allCases {
+                let context = DuoLayoutContext(hasHinge: true, frontMode: mode)
+                XCTAssertTrue(context.placesHeaderBesideTopRegions)
+                let layout = DuoWorkspaceLayout.resolve(
+                    bounds: display, safeFrame: safe, occlusions: [reserved], divisions: [],
+                    context: context, headerHeight: 44
+                )
+                XCTAssertEqual(layout.headerInsets.top + 44, reserved.maxY)
+                XCTAssertEqual(layout.headerInsets.trailing, 130)
+                XCTAssertEqual(layout.headerInsets.top + 44 + layout.cameraClearance, reserved.maxY)
+                XCTAssertTrue(layout.headerSharesTopBand)
+            }
         }
         XCTAssertFalse(front(.sideRail).placesHeaderBesideTopRegions)
         XCTAssertFalse(front(.behindCamera).placesHeaderBesideTopRegions)

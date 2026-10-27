@@ -87,9 +87,10 @@ struct DuoWorkspaceLayout: Equatable {
 
         let sharesTopBand = context.placesHeaderBesideTopRegions && headerHeight > 0
         let clearsTopRegions = (context.usesFullWidth && context.frontMode == .belowCamera) || sharesTopBand
-        // Portrait leaves too little width beside the system regions for tabs
-        // and buttons, so the header takes a full-width row beneath them.
-        let stacksHeader = clearsTopRegions && headerHeight > 0 && bounds.height > bounds.width
+        // The portrait front display leaves too little width beside the system
+        // regions for tabs and buttons, so the header takes a row beneath them.
+        let stacksHeader = context.isFrontDisplay && clearsTopRegions && headerHeight > 0
+            && bounds.height > bounds.width
         if context.usesFullWidth || sharesTopBand {
             if headerHeight > 0 && !stacksHeader {
                 // Disabling the system side bar can remove its horizontal
