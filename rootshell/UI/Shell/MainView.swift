@@ -489,7 +489,7 @@ struct MainView: View {
                         .frame(height: TabMetrics.tabBarHeight)
                         .padding(workspace.headerInsets)
                         .background {
-                            if duoLayout.placesHeaderBesideTopRegions
+                            if workspace.headerSharesTopBand
                                 && topTabStyle.usesStripLayout {
                                 // The controls avoid the camera column, but
                                 // the strip meets the full-width terminal.

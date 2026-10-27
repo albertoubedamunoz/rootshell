@@ -525,8 +525,12 @@ final class TerminalKeyboardAccessoryController: NSObject {
     /// can still describe an earlier drawer position. Read the requested size
     /// directly during terminal layout, without querying UIKit's input window
     /// (which can still have its old frame or exclude the bottom safe area).
+    /// Only while UIKit presents it: an unfocused split-view app keeps first
+    /// responder after its keyboard hides. The latches cover overlay round trips.
     var dockedTouchKeyboardFrameInScreen: CGRect? {
+        let tracker = KeyboardTracker.shared
         guard usesFullTouchKeyboard, touchKeyboardPlacement == .docked,
+              tracker.isAnyInputViewPresented || tracker.isPreservingSoftwareKeyboardLayout,
               let host, host.keyboardIsFirstResponder,
               let window = host.keyboardHostView.window,
               let keyboard = touchKeyboard, !keyboard.isFloating,
