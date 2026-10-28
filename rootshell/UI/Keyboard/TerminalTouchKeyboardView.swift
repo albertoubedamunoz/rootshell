@@ -2070,7 +2070,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             }
         }
         // UIKit places the system container; only the in-app card can be requested.
-        guard !isToolbarOnly, !usesSystemPlacement, !isEmbeddedPreview, onPlacementRequested != nil else { return styles }
+        // The Duo's laptop pose keeps it docked below the fold.
+        guard !isToolbarOnly, !usesSystemPlacement, !isEmbeddedPreview, !fillsHostHeight,
+              onPlacementRequested != nil else { return styles }
         let placements = [(Model.Placement.docked, String(localized: "Docked")),
                           (Model.Placement.floating, String(localized: "Detached"))].map { placement, title in
             UIAction(title: title, state: (placement == .floating) == isFloating ? .on : .off) { [weak self] _ in
