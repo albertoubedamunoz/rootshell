@@ -411,7 +411,6 @@ final class TerminalKeyboardAccessoryController: NSObject {
             overlay.isHostActive = { [weak scope] in
                 scope?.owner?.touchKeyboardIsActive == true || scope?.parkedOwner != nil
             }
-            overlay.onDock = { [weak scope] in scope?.owner?.setTouchKeyboardPlacement(.docked) }
             overlay.frame = window.bounds
             overlay.inputRegion = scope.inputRegion
             overlay.foldRegion = scope.foldRegion
