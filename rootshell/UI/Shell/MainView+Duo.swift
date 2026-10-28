@@ -30,7 +30,22 @@ extension MainView {
     /// Window-space top of the tab header band.
     var chromeTopInset: CGFloat { tabHeaderTopLimit ?? windowSafeAreaInsets.top }
 
-    var showsDuoSideRail: Bool { duoLayout.usesSideRail && !tabBarHidden && !showKeyboardChooser }
+    /// iPhone and iPad without top tabs: the terminal runs under the top safe
+    /// area. Its grid stays below it while scrollback fills the band. Duo's
+    /// full-width and front side-rail modes already own their top edge.
+    var terminalExtendsUnderTopSafeArea: Bool {
+        #if !targetEnvironment(macCatalyst) && !os(visionOS)
+        !showsHorizontalTabHeader && !duoLayout.usesFullWidth && !duoLayout.extendsTerminalToVerticalEdges
+        #else
+        false
+        #endif
+    }
+
+    /// The inner display reserves the rail's column even when the rail is
+    /// hidden, so only the top tab bar follows the global setting there.
+    var showsDuoSideRail: Bool {
+        duoLayout.usesSideRail && (!tabBarHidden || duoLayout.showsTabsBesideSideRail) && !showKeyboardChooser
+    }
 
     @ViewBuilder
     func applyDuoChrome<Content: View>(_ content: Content) -> some View {

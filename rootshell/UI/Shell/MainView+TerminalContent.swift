@@ -1093,10 +1093,15 @@ extension MainView {
                     width: width,
                     keyboardFrame: keyboardFrame,
                     keyboardHeight: keyboardHeight,
-                    containerBottomSafeAreaExpansion: max(0, expanded.size.height - inner.size.height),
+                    // Only the bottom escape; the top one is the surface's top inset.
+                    containerBottomSafeAreaExpansion: max(
+                        0, expanded.frame(in: .global).maxY - inner.frame(in: .global).maxY),
                     layer: layer
                 )
             }
+            // The top escape lets scrollback fill the band above the grid,
+            // which ghostty_surface_set_top_inset keeps below the safe area.
+            .ignoresSafeArea(.container, edges: terminalExtendsUnderTopSafeArea ? .top : [])
             // A floating keyboard still reports a keyboard region the size of
             // the strip, which would otherwise cancel the escape.
             .ignoresSafeArea([.container, .keyboard], edges: (duoTabletopAvailable && !duoTabletopDisabled) || roundedPanes ? [] : .bottom)
