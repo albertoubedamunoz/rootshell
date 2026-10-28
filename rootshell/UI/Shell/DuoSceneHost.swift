@@ -124,13 +124,15 @@ struct DuoWorkspaceGeometry<Content: View>: View {
             divisions = expanded.reservedRegions(kind: .division, layoutDirectionBehavior: .fixed).map(\.frame)
         }
         #endif
-        return .resolve(
+        var layout = DuoWorkspaceLayout.resolve(
             bounds: CGRect(origin: .zero, size: expanded.size), safeFrame: safeFrame,
             occlusions: occlusions, divisions: divisions, context: context,
             headerHeight: headerHeight, rightToLeft: layoutDirection == .rightToLeft,
             occlusionContentFrames: occlusionContentFrames,
             headerTopLimit: headerTopLimit.map { $0 - frame.minY }
         )
+        layout.safeAreaTop = safe.frame(in: .global).minY
+        return layout
     }
 }
 

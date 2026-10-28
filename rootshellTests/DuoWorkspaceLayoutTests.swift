@@ -23,6 +23,7 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
         XCTAssertTrue(front(.sideRail).usesSideRail)
         XCTAssertFalse(front(.sideRail).usesFullWidth)
         XCTAssertFalse(front(.sideRail).showsHorizontalTabs(globallyHidden: false))
+        XCTAssertFalse(front(.sideRail).showsTabsBesideSideRail)
         for hidden in [true, false] {
             XCTAssertTrue(front(.belowCamera).showsHorizontalTabs(globallyHidden: hidden))
             XCTAssertEqual(front(.behindCamera).showsHorizontalTabs(globallyHidden: hidden), !hidden)
@@ -39,7 +40,12 @@ final class DuoWorkspaceLayoutTests: XCTestCase {
             XCTAssertFalse(context.extendsTerminalToVerticalEdges)
             XCTAssertFalse(context.usesFullWidth)
             XCTAssertTrue(context.usesSideRail)
+            // The inner display's side rail still honors the global top tab setting.
+            XCTAssertTrue(context.showsTabsBesideSideRail)
+            XCTAssertTrue(context.showsHorizontalTabs(globallyHidden: false))
+            XCTAssertFalse(context.showsHorizontalTabs(globallyHidden: true))
             context.verticalEdge = nil
+            XCTAssertFalse(context.showsTabsBesideSideRail)
             XCTAssertTrue(context.showsHorizontalTabs(globallyHidden: false))
             XCTAssertFalse(context.showsHorizontalTabs(globallyHidden: true))
         }

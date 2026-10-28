@@ -536,6 +536,7 @@ struct MainView: View {
                     Color.clear.frame(height: workspace.lowerReservation)
                 }
                 .background(DuoInputRegionReporter(region: workspace.inputRegion, fold: workspace.fold))
+                .environment(\.terminalTopSafeEdge, terminalExtendsUnderTopSafeArea ? workspace.safeAreaTop : 0)
                 .onChange(of: workspace.tabletopAvailable, initial: true) { _, available in
                     duoTabletopAvailable = available
                     if !available { duoTabletopDisabled = false }
