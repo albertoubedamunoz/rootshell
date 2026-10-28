@@ -14,6 +14,9 @@ struct DuoLayoutContext: Equatable {
         hasHinge && isFrontDisplay && frontMode == .behindCamera
     }
     var usesSideRail: Bool { verticalEdge != nil && !usesFullWidth }
+    /// The inner display has room for top tabs beside its side rail; the rail
+    /// keeps the new-tab and settings actions.
+    var showsTabsBesideSideRail: Bool { hasHinge && !isFrontDisplay && usesSideRail }
     // The front terminal occupies the column beside the system rail. Its
     // rectangular grid can reach both vertical edges in this mode.
     var extendsTerminalToVerticalEdges: Bool { isFrontDisplay && usesSideRail }
@@ -36,7 +39,7 @@ struct DuoLayoutContext: Equatable {
         if usesFullWidth {
             return frontMode == .belowCamera || (behindCameraShowsTabs && !globallyHidden)
         }
-        return !usesSideRail && !globallyHidden
+        return (!usesSideRail || showsTabsBesideSideRail) && !globallyHidden
     }
 }
 
@@ -44,10 +47,21 @@ private struct DuoLayoutContextKey: EnvironmentKey {
     static let defaultValue = DuoLayoutContext()
 }
 
+private struct TerminalTopSafeEdgeKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 extension EnvironmentValues {
     var duoLayout: DuoLayoutContext {
         get { self[DuoLayoutContextKey.self] }
         set { self[DuoLayoutContextKey.self] = newValue }
+    }
+
+    /// Window-space y of the workspace's safe-area top while the terminal
+    /// extends under it; 0 otherwise.
+    var terminalTopSafeEdge: CGFloat {
+        get { self[TerminalTopSafeEdgeKey.self] }
+        set { self[TerminalTopSafeEdgeKey.self] = newValue }
     }
 }
 
@@ -63,6 +77,9 @@ struct DuoWorkspaceLayout: Equatable {
     var inputRegion: CGRect?
     /// The horizontal fold, reported even while tabletop mode is disabled.
     var fold: CGRect?
+    /// Global y of the safe area's top edge. UIKit's window inset can be zero
+    /// in landscape while the scene's safe area still clears the corner.
+    var safeAreaTop: CGFloat = 0
     var tabletopAvailable: Bool { fold != nil }
 
     static func resolve(

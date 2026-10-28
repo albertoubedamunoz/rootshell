@@ -185,6 +185,19 @@ extension Ghostty {
             }
         }
 
+        /// Window-space y of the safe-area top when the Duo inner side-rail
+        /// layout extends the surface under it (0 otherwise). The grid starts
+        /// below it while scrollback fills the band.
+        private var lastMultiplexerTopInset: CGFloat = 0
+        var topSafeEdge: CGFloat = 0 {
+            didSet {
+                guard topSafeEdge != oldValue else { return }
+                #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                refreshBottomInset()
+                #endif
+            }
+        }
+
         /// App-level presentations, such as settings and sheets, occlude
         /// selection handle overlays before UIKit has attached a modal VC.
         var selectionUIExternallyOccluded: Bool = false
@@ -2846,12 +2859,52 @@ extension Ghostty {
             return Double(overlap * scale)
         }
 
-        /// Push the current bottom inset to the core so the grid reserves the
-        /// home-indicator strip (the drawable covers it; smooth-scroll overscan
-        /// fills it on scrollback). Deduped, so it is safe to call on every
-        /// layout pass.
+        /// The portion of this surface's drawable above `topSafeEdge`, in
+        /// framebuffer pixels. The grid starts below it while the scrollback
+        /// above the viewport fills it.
+        func currentTopInsetPixels() -> Double {
+            guard topSafeEdge > 0, let window else { return 0 }
+            let frameInWindow = convert(bounds, to: window)
+            let overlap = min(max(0, topSafeEdge - frameInWindow.minY), bounds.height)
+            let scale = contentScaleFactor
+            guard scale > 0 else { return 0 }
+            return Double(overlap * scale)
+        }
+
+        /// The top inset in points, rounded and clamped like Surface.setTopInset.
+        /// Multiplexer layouts budget it into the pane that touches the top.
+        var topInsetPoints: CGFloat {
+            let scale = contentScaleFactor
+            guard scale > 0 else { return 0 }
+            return CGFloat(min(max(currentTopInsetPixels().rounded(), 0), 10_000)) / scale
+        }
+
+        /// Push the current bottom and top insets to the core so the grid
+        /// reserves the home-indicator strip (the drawable covers it;
+        /// smooth-scroll overscan fills it on scrollback). Deduped, so it is
+        /// safe to call on every layout pass.
         func updateBottomInset() {
             surfaceController.updateBottomInset()
+            relayoutMultiplexerForTopInset()
+        }
+
+        /// Multiplexers budget the top inset into the top pane's grid, so a
+        /// change (such as top tabs toggling) re-lays out the tab after this pass.
+        private func relayoutMultiplexerForTopInset() {
+            let inset = topInsetPoints
+            guard inset != lastMultiplexerTopInset else { return }
+            lastMultiplexerTopInset = inset
+            guard isMultiplexerPane else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if let binding = tmuxPaneBinding {
+                    TmuxController.controller(forOwnerSurface: binding.parentSurface)?
+                        .reapplyLayout(windowID: binding.windowId)
+                    NotificationCenter.default.post(name: .terminalLayoutInvalidation, object: nil)
+                } else if isHerdrPane, !usesHerdrFallbackScrolling {
+                    enclosingSplitHost?.herdrSurfaceMetricsDidChange()
+                }
+            }
         }
 
         /// Toggle mouse reporting via ghostty's built-in action.

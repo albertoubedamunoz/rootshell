@@ -893,10 +893,6 @@ nonisolated enum TerminalTouchKeyboardModel {
                        y: travelY > 0 ? min(1, max(0, (frame.minY - available.minY) / travelY)) : 0.5)
     }
 
-    static func shouldDockAfterDrag(_ frame: CGRect, in available: CGRect) -> Bool {
-        frame.maxY >= available.maxY - 18 && abs(frame.midX - available.midX) < available.width * 0.2
-    }
-
     /// Detect an existing native floating input region.
     static func isFloatingInput(width: CGFloat, hostWidth: CGFloat, isPad: Bool) -> Bool {
         isPad && width > 0 && width <= 400 && width < hostWidth - 1

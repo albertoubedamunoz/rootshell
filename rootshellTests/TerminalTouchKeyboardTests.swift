@@ -585,15 +585,6 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertTrue(resized.contains(Model.floatingFrame(in: resized, height: 376, anchor: anchor)))
     }
 
-    func testDraggingToBottomCenterDocksButBottomCornerDoesNot() {
-        let available = CGRect(x: 12, y: 36, width: 1000, height: 700)
-        let centered = Model.floatingFrame(in: available, height: 252, anchor: CGPoint(x: 0.5, y: 1))
-        XCTAssertTrue(Model.shouldDockAfterDrag(centered, in: available))
-        XCTAssertFalse(Model.shouldDockAfterDrag(centered.offsetBy(dx: 0, dy: -80), in: available))
-        let corner = Model.floatingFrame(in: available, height: 252, anchor: CGPoint(x: 1, y: 1))
-        XCTAssertFalse(Model.shouldDockAfterDrag(corner, in: available))
-    }
-
     func testFloatingCardSettlesBesideTheFold() {
         let available = CGRect(x: 0, y: 0, width: 900, height: 600)
         let fold = CGRect(x: 440, y: 0, width: 20, height: 600)

@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/ghosttykit-rootshell.git",
       "state" : {
-        "revision" : "f049cd3806f75c6be0d2a531a61bff448f2d339b",
-        "version" : "0.2.22"
+        "revision" : "ccb27daaf300e205021f79ab51ac4f5ec4f4f1cf",
+        "version" : "0.2.23"
       }
     },
     {
@@ -401,8 +401,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/trzsz-ssh-rootshell.git",
       "state" : {
-        "revision" : "14d8ac08cd5567f9d5f08ee9a841ce04f643376a",
-        "version" : "0.2.19"
+        "revision" : "d962f666dff60e96b519283c77c288c218495b0f",
+        "version" : "0.2.20"
       }
     },
     {
@@ -410,8 +410,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/vim-rootshell.git",
       "state" : {
-        "revision" : "89fdb95b3ba246a75b6a7488dcc99c5ebbb02eb8",
-        "version" : "0.2.0"
+        "revision" : "445322acc8ae8aaa9e63ccb7288eca0959f7bb1d",
+        "version" : "0.2.1"
       }
     },
     {
