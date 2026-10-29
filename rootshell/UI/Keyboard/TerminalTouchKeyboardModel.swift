@@ -92,6 +92,11 @@ nonisolated enum TerminalTouchKeyboardModel {
 
         var usesBottomSafeArea: Bool { self != .extraLarge }
 
+        /// The front display keeps its own height once set; until then it follows the inner one.
+        static func resolved(inner: Self, front: Self?, isFrontDisplay: Bool) -> Self {
+            isFrontDisplay ? front ?? inner : inner
+        }
+
         /// Positive steps shrink the keyboard. Clamps at both ends.
         func stepped(by offset: Int) -> Self {
             let all = Self.allCases

@@ -499,7 +499,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private var hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
     private var clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
     private var characterPreviewEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCharacterPreview)
-    private var heightSetting = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
+    private var heightSetting = TerminalTouchKeyboardView.resolvedHeightSetting()
     /// The detached keyboard sizes itself, so it keeps the default metrics.
     private var keyboardHeight: Model.Height { isFloating ? .large : heightSetting }
     private var glyphsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
@@ -568,6 +568,13 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         if hostFill != nil { return bounds.height }
         return isToolbarOnly ? toolbarHeight + toolbarBottomInset
             : toolbarHeight + rowHeight * 4 + bottomInset + (suggestionsEnabled ? 36 : 0)
+    }
+
+    private static func resolvedHeightSetting() -> Model.Height {
+        Model.Height.resolved(
+            inner: SettingsStore.shared.value(Settings.Keyboard.touchHeight),
+            front: SettingsStore.shared.value(Settings.Keyboard.touchHeightDuoFront),
+            isFrontDisplay: DuoHingeEvents.isFrontDisplay)
     }
 
     private func updateHostFill() {
@@ -713,6 +720,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                      Notification.Name.NSProcessInfoPowerStateDidChange,
                      UIAccessibility.reduceTransparencyStatusDidChangeNotification,
                      UIAccessibility.darkerSystemColorsStatusDidChangeNotification, Notification.Name.settingsDidChange,
+                     Notification.Name.duoDisplayDidChange,
                      KeyboardToolbarManager.layoutDidChangeNotification] {
             let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
@@ -888,7 +896,7 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         hapticsEnabled = SettingsStore.shared.value(Settings.Keyboard.touchHaptics)
         clickSoundEnabled = SettingsStore.shared.value(Settings.Keyboard.touchClickSound)
         characterPreviewEnabled = SettingsStore.shared.value(Settings.Keyboard.touchCharacterPreview)
-        let height = SettingsStore.shared.value(Settings.Keyboard.touchHeight)
+        let height = Self.resolvedHeightSetting()
         let glyphs = SettingsStore.shared.value(Settings.Keyboard.touchGlyphs)
         if heightSetting != height || glyphsEnabled != glyphs { cancelInteraction() }
         heightSetting = height
@@ -1920,7 +1928,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             let height = heightSetting.stepped(by: gesture.heightOffset)
             guard height != heightSetting else { return }
             // settingsDidChange drives the relayout through refreshSettings.
-            SettingsStore.shared.set(Settings.Keyboard.touchHeight, height)
+            if DuoHingeEvents.isFrontDisplay {
+                SettingsStore.shared.set(Settings.Keyboard.touchHeightDuoFront, height)
+            } else {
+                SettingsStore.shared.set(Settings.Keyboard.touchHeight, height)
+            }
             showPageIndicator(height: height)
             return
         }

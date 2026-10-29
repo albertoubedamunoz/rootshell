@@ -6,6 +6,8 @@ struct TerminalTouchKeyboardSettingsView: View {
     @Setting(Settings.Keyboard.touchThemeAware) private var themeAware
     @Setting(Settings.Keyboard.touchPhosphorColor) private var phosphorColor
     @Setting(Settings.Keyboard.touchHeight) private var keyboardHeight
+    @Setting(Settings.Keyboard.touchHeightDuoFront) private var frontKeyboardHeight
+    @Environment(\.duoLayout) private var duoLayout
     @Setting(Settings.Keyboard.touchFloatingGlassStyle) private var floatingGlassStyle
     @Setting(Settings.Keyboard.touchFloatingGlassTintOpacity) private var floatingGlassTintOpacity
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -18,6 +20,26 @@ struct TerminalTouchKeyboardSettingsView: View {
             get: { TerminalTouchKeyboardModel.floatingGlassTintOpacity(floatingGlassTintOpacity) },
             set: { floatingGlassTintOpacity = $0 }
         )
+    }
+
+    private var frontHeight: Binding<TerminalTouchKeyboardModel.Height> {
+        Binding(
+            get: { frontKeyboardHeight ?? keyboardHeight },
+            set: { frontKeyboardHeight = $0 }
+        )
+    }
+
+    private var showsDuoHeights: Bool {
+        if #available(iOS 27.1, *) { return duoLayout.hasHinge }
+        return false
+    }
+
+    private func heightPicker(_ title: LocalizedStringKey, selection: Binding<TerminalTouchKeyboardModel.Height>) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(TerminalTouchKeyboardModel.Height.allCases, id: \.self) { height in
+                Text(height.displayName).tag(height)
+            }
+        }
     }
 
     var body: some View {
@@ -85,19 +107,27 @@ struct TerminalTouchKeyboardSettingsView: View {
                 Text("Letter Prediction uses recent English typing to help choose between nearby letters. Turn it off for literal key targeting. Suggestions are local spelling guesses and completions; tap to apply one. Words are never automatically replaced. The double-space period shortcut follows your Terminal keyboard setting. Key Click Sounds match the keyboard style and are muted in Silent Mode. Character Preview shows the pressed letter above your finger; turn it off to only highlight the key.")
             }
             Section {
-                Picker("Keyboard Height", selection: $keyboardHeight) {
-                    ForEach(TerminalTouchKeyboardModel.Height.allCases, id: \.self) { height in
-                        Text(height.displayName).tag(height)
-                    }
+                if showsDuoHeights {
+                    heightPicker("Inner Display Height", selection: $keyboardHeight)
+                        .settingContextMenu(Settings.Keyboard.touchHeight)
+                        .themedRow()
+                    heightPicker("Front Display Height", selection: frontHeight)
+                        .settingContextMenu(Settings.Keyboard.touchHeightDuoFront)
+                        .themedRow()
+                } else {
+                    heightPicker("Keyboard Height", selection: $keyboardHeight)
+                        .settingContextMenu(Settings.Keyboard.touchHeight)
+                        .themedRow()
                 }
-                .settingContextMenu(Settings.Keyboard.touchHeight)
-                .themedRow()
                 SettingToggle(Settings.Keyboard.touchGlyphs, title: "Key Glyphs", icon: "command")
                     .themedRow()
             } header: {
                 Text("Layout")
             } footer: {
                 Text("Extra Large keeps the keyboard above the bottom safe area. Large moves every row, including Space, down into the bottom safe area without reducing key height. The bottom corners adapt to your iPhone. Medium, Small, and Extra Small also reduce the height of the keys and toolbar to leave more room for the terminal. Swipe up or down across the keys to step between heights. Key Glyphs shows symbols for Escape, Tab, and modifiers; turn it off to show their names.")
+                if showsDuoHeights {
+                    Text("On iPhone Duo, the inner and front displays each keep their own height, and swiping changes the display you’re using. The front display matches the inner one until you change it.")
+                }
             }
             Section {
                 Picker("Keyboard Style", selection: $keyboardStyle) {
