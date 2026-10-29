@@ -40,6 +40,10 @@ nonisolated extension Settings {
             "terminalTouchKeyboardHeight", default: TerminalTouchKeyboardModel.Height.large,
             group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-height", title: String(localized: "Keyboard Height"))
+        /// iPhone Duo's closed front display; nil follows `touchHeight`.
+        static let touchHeightDuoFront = SettingKey<TerminalTouchKeyboardModel.Height?>(
+            "terminalTouchKeyboardHeightDuoFront", default: nil, group: .keyboard, policy: .localByDefault,
+            configKey: "terminal-touch-keyboard-height-duo-front", title: String(localized: "Front Display Keyboard Height"))
         static let touchGlyphs = SettingKey(
             "terminalTouchKeyboardGlyphs", default: true, group: .keyboard, policy: .localByDefault,
             configKey: "terminal-touch-keyboard-glyphs", title: String(localized: "Keyboard Key Glyphs"))
@@ -95,7 +99,7 @@ nonisolated extension Settings {
         static let all: [AnySettingDefinition] = [
             optionKeyAsAlt.erased, forceASCIIKeyboard.erased, doubleSpaceForPeriod.erased, composeAutocorrect.erased,
             writingAssistance.erased, touchEnabled.erased, touchSuggestions.erased, touchHaptics.erased, touchCharacterPreview.erased,
-            touchHeight.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
+            touchHeight.erased, touchHeightDuoFront.erased, touchGlyphs.erased, touchStyle.erased, touchThemeAware.erased, touchLetterPrediction.erased,
             touchSteampunkThemeAwareKeycaps.erased, touchPhosphorColor.erased, touchClickSound.erased,
             touchStatePerTab.erased, touchSystemFloating.erased, touchFloatingGlassStyle.erased, touchFloatingGlassTintOpacity.erased,
             touchChooserPresented.erased,

@@ -24,6 +24,12 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(second.presentation.toolbarDrawer, .stacked(2))
     }
 
+    func testDuoFrontDisplayHeightFollowsInnerUntilSet() {
+        XCTAssertEqual(Model.Height.resolved(inner: .large, front: .small, isFrontDisplay: false), .large)
+        XCTAssertEqual(Model.Height.resolved(inner: .large, front: nil, isFrontDisplay: true), .large)
+        XCTAssertEqual(Model.Height.resolved(inner: .large, front: .small, isFrontDisplay: true), .small)
+    }
+
     func testSeparateKeyboardStateFollowsTabsRatherThanPanes() {
         var store = Model.StateStore<KeyboardState>()
         let tab = UUID()
