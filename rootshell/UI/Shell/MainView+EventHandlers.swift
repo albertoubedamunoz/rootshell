@@ -533,10 +533,11 @@ extension MainView {
             oldFocus.focusDidChange(false, skipResign: newFocusAcquired || newFocusAwaitsWindow)
         }
 
-        // Show tab indicator overlay when tab bar is hidden, unless the user
-        // selected via the vertical tab sidebar that is already visible.
+        // Show tab indicator overlay when no top tab bar is on screen (setting
+        // off, or a Duo layout without one), unless the user selected via the
+        // vertical tab sidebar that is already visible.
         let shouldSuppressIndicator = tabIndicator.consumeSuppressHiddenIndicator()
-        if tabBarHidden && terminals.count > 1 && !shouldSuppressIndicator {
+        if !showsHorizontalTabHeader && terminals.count > 1 && !shouldSuppressIndicator {
             tabIndicator.showBriefly()
         }
 
