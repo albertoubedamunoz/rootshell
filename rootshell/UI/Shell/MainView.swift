@@ -48,6 +48,9 @@ struct MainView: View {
     @Environment(\.horizontalSizeClass) var workspaceSizeClass
     @State var duoTabletopDisabled = false
     @State var duoTabletopAvailable = false
+    /// Flips to replace the Duo rail's tab item; see `noteDuoTabButtonMounted`.
+    @State var duoTabItemGeneration = 0
+    @State var duoTabButtonMounts = 0
     @EnvironmentObject var ghosttyApp: Ghostty.App
     @Environment(\.openWindow) var openWindow
     @Environment(\.dismissWindow) var dismissWindow
@@ -642,7 +645,7 @@ struct MainView: View {
                 // Pass the TabModel (class reference, structural under Observation),
                 // not the title — keeps the title read inside the overlay's body
                 // so per-tab title mutations don't invalidate MainView.body.
-                if tabIndicator.isShowing && !showsHorizontalTabHeader && !showsDuoSideRail && terminals.indices.contains(selectedTabIndex) {
+                if tabIndicator.isShowing && !showsHorizontalTabHeader && terminals.indices.contains(selectedTabIndex) {
                     // Position/count/shortcut reflect navigable tabs; hidden
                     // tmux windows are skipped, and grouped mode scopes this
                     // to the active group.
