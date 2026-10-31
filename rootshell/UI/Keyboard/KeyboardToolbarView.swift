@@ -649,6 +649,11 @@ class KeyboardToolbarView: UIView {
 
         for slot in mainSlots {
             if let button = createButtonForSlot(slot) {
+                if let modifierButton = button as? KeyboardModifierButton {
+                    modifierButton.sweepPeers = { [weak self] in
+                        self?.mainRowStackView.arrangedSubviews.compactMap { $0 as? KeyboardModifierButton } ?? []
+                    }
+                }
                 mainRowStackView.addArrangedSubview(button)
             }
         }
