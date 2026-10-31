@@ -866,6 +866,87 @@ final class TerminalTouchKeyboardTests: XCTestCase {
         XCTAssertEqual(state.rawValue, 0)
     }
 
+    func testModifierSweepLatchesEveryModifierAsOneShot() {
+        var state = Model.Modifiers()
+        state.begin(.control); state.begin(.alt)
+        state.endSweep([.control, .alt], at: 1, holding: false)
+        XCTAssertEqual(state.oneShot, [.control, .alt])
+        state.consume()
+        XCTAssertEqual(state.rawValue, 0)
+    }
+
+    func testHeldModifierSweepLocksAndClearsFromLockedStart() {
+        var state = Model.Modifiers()
+        state.begin(.control); state.begin(.shift)
+        XCTAssertEqual(state.heldSweepLocks([.control, .shift]), true)
+        state.endSweep([.control, .shift], at: 1, holding: true)
+        XCTAssertEqual(state.locked, [.control, .shift])
+        state.begin(.control)
+        XCTAssertEqual(state.heldSweepLocks([.control]), false)
+        state.endSweep([.control], at: 2, holding: true)
+        XCTAssertEqual(state.locked, [.shift])
+    }
+
+    func testModifierSweepFromActiveModifierClearsSelection() {
+        var state = Model.Modifiers()
+        state.begin(.control); state.end(.control, at: 1)
+        state.begin(.control); state.begin(.alt)
+        state.endSweep([.control, .alt], at: 2, holding: false)
+        XCTAssertEqual(state.rawValue, 0)
+    }
+
+    func testModifierSweepUsedByKeyIsChord() {
+        var state = Model.Modifiers()
+        state.begin(.control); state.begin(.alt)
+        state.consume()
+        XCTAssertNil(state.heldSweepLocks([.control, .alt]))
+        state.endSweep([.control, .alt], at: 1, holding: true)
+        XCTAssertEqual(state.rawValue, 0)
+    }
+
+    func testCancelledModifierSweepLeavesStateAlone() {
+        var state = Model.Modifiers()
+        state.begin(.control); state.begin(.alt)
+        state.endSweep([.control, .alt], at: 1, holding: true, cancelled: true)
+        XCTAssertEqual(state.rawValue, 0)
+    }
+
+    func testModifierSweepReentryRestartsHold() {
+        var sweep = Model.ModifierSweep("ctrl", modifier: .control, at: 0)
+        XCTAssertTrue(sweep.hover("alt", modifier: .alt, at: 0.05))
+        XCTAssertTrue(sweep.hover("ctrl", modifier: .control, at: 0.19))
+        XCTAssertEqual(sweep.modifiers, [.control, .alt])
+        XCTAssertFalse(sweep.holding(at: 0.26))
+        XCTAssertTrue(sweep.holding(at: 0.39))
+    }
+
+    func testModifierSweepRestartsAfterLeavingAndReturningToSameKey() {
+        var sweep = Model.ModifierSweep("ctrl", modifier: .control, at: 0)
+        XCTAssertFalse(sweep.hover("ctrl", modifier: .control, at: 0.1))
+        XCTAssertFalse(sweep.hover(nil, modifier: nil, at: 0.15))
+        XCTAssertTrue(sweep.hover("ctrl", modifier: .control, at: 0.18))
+        XCTAssertFalse(sweep.holding(at: 0.3))
+        XCTAssertEqual(sweep.modifiers, [.control])
+    }
+
+    func testHeldModifierSweepStaysHeldForLaterKeys() {
+        var sweep = Model.ModifierSweep("ctrl", modifier: .control, at: 0)
+        XCTAssertFalse(sweep.commitHold(at: 0.1))
+        XCTAssertTrue(sweep.commitHold(at: 0.2))
+        XCTAssertTrue(sweep.hover("alt", modifier: .alt, at: 0.3))
+        XCTAssertTrue(sweep.holding(at: 0.35))
+    }
+
+    func testModifierSweepHoldWaitsWhileOffEveryModifier() {
+        var sweep = Model.ModifierSweep("ctrl", modifier: .control, at: 0)
+        XCTAssertFalse(sweep.hover(nil, modifier: nil, at: 0.1))
+        XCTAssertFalse(sweep.commitHold(at: 0.4))
+        XCTAssertFalse(sweep.holding(at: 0.4))
+        XCTAssertTrue(sweep.hover("ctrl", modifier: .control, at: 0.5))
+        XCTAssertFalse(sweep.holding(at: 0.55))
+        XCTAssertTrue(sweep.commitHold(at: 0.71))
+    }
+
     func testModifierTapIsOneShot() {
         var state = Model.Modifiers()
         state.begin(.control)
