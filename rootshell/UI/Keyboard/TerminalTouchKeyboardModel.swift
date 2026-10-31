@@ -183,6 +183,32 @@ nonisolated enum TerminalTouchKeyboardModel {
             }
         }
 
+        /// Toolbar modifier swipes lock once the finger rests this long on the last key.
+        static let sweepHold: TimeInterval = 0.2
+
+        /// Settles one touch that swept `modifiers` in order. Released quickly they
+        /// latch as one-shot, held they lock; either clears if the first was already on.
+        mutating func endSweep(_ modifiers: [Modifier], at time: TimeInterval, holding: Bool, cancelled: Bool = false) {
+            if modifiers.count == 1, !holding { return end(modifiers[0], at: time, cancelled: cancelled) }
+            held.subtract(modifiers)
+            defer { used.subtract(modifiers) }
+            guard !cancelled, let first = modifiers.first, used.isDisjoint(with: modifiers) else { return }
+            let clears = holding ? locked.contains(first) : oneShot.union(locked).contains(first)
+            for modifier in modifiers {
+                oneShot.remove(modifier)
+                locked.remove(modifier)
+                lastTap[modifier] = nil
+                guard !clears else { continue }
+                if holding { locked.insert(modifier) } else { oneShot.insert(modifier) }
+            }
+        }
+
+        /// Whether a held sweep would lock, or nil once a key press made it a chord.
+        func heldSweepLocks(_ modifiers: [Modifier]) -> Bool? {
+            guard let first = modifiers.first, used.isDisjoint(with: modifiers) else { return nil }
+            return !locked.contains(first)
+        }
+
         mutating func consume(_ rawValue: Int? = nil) {
             let consumed = rawValue.map { value in Set(Modifier.allCases.filter { value & $0.rawValue != 0 }) }
                 ?? oneShot.union(held)
@@ -193,6 +219,42 @@ nonisolated enum TerminalTouchKeyboardModel {
 
         mutating func cancelHeld() { held.removeAll(); used.removeAll() }
         mutating func reset() { self = Self() }
+    }
+
+    /// One touch swiping across toolbar modifiers; `Key` identifies a keycap.
+    struct ModifierSweep<Key: Equatable> {
+        private(set) var keys: [Key]
+        private(set) var modifiers: [Modifier]
+        private var hovered: Key?
+        private var entered: TimeInterval
+        /// Set once the finger rests past `sweepHold`; keys joined later lock too.
+        private(set) var held = false
+
+        init(_ key: Key, modifier: Modifier, at time: TimeInterval) {
+            keys = [key]; modifiers = [modifier]; hovered = key; entered = time
+        }
+
+        /// Moves onto `key`, or off every modifier with nil. Entering any key,
+        /// even one crossed before, restarts the hold; returns whether it did.
+        mutating func hover(_ key: Key?, modifier: Modifier?, at time: TimeInterval) -> Bool {
+            defer { hovered = key }
+            guard let key, let modifier, key != hovered else { return false }
+            if !keys.contains(key) { keys.append(key); modifiers.append(modifier) }
+            entered = time
+            return true
+        }
+
+        /// Only time resting on a modifier counts; off every key the hold waits.
+        func holding(at time: TimeInterval) -> Bool {
+            held || (hovered != nil && time - entered >= Modifiers.sweepHold)
+        }
+
+        /// Records the hold when due; returns whether this call did.
+        mutating func commitHold(at time: TimeInterval) -> Bool {
+            guard !held, holding(at: time) else { return false }
+            held = true
+            return true
+        }
     }
 
     /// One store per window. Reference values let placement and keyboard-choice

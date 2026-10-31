@@ -40,6 +40,7 @@ class KeyboardModifierButton: KeyboardButton {
     private var sweepClears = false
     private var sweepUnlocks = false
     private var sweepCommitted = false
+    private var sweepAppliedOnTouchDown = false
 
     /// Three-state modifier: inactive → oneShot → locked → inactive
     var modifierState: ModifierState = .inactive {
@@ -150,7 +151,13 @@ class KeyboardModifierButton: KeyboardButton {
         sweepClears = isModifierActive
         sweepUnlocks = modifierState == .locked
         sweepCommitted = false
+        // Accessory mode activates on touch-down so a chord with another key sees it.
+        sweepAppliedOnTouchDown = interactionMode == .accessory
         isHighlighted = true
+        if sweepAppliedOnTouchDown {
+            sendKey()
+            playHaptic()
+        }
         scheduleSweep(after: Self.sweepHoldDuration)
     }
 
@@ -173,6 +180,10 @@ class KeyboardModifierButton: KeyboardButton {
             button.isHighlighted = true
             sweepLastEntry = touch.timestamp
             scheduleSweep(after: Self.sweepHoldDuration)
+        } else if hoveredButton == nil {
+            // Off every modifier the hold waits; re-entering restarts it.
+            sweepTimer?.invalidate()
+            sweepTimer = nil
         }
         sweepHoveredButton = hoveredButton
     }
@@ -185,29 +196,26 @@ class KeyboardModifierButton: KeyboardButton {
         guard touches.contains(touch) else { return }
         if canDispatchTouchAction {
             // Check the touch timestamp too: touch-up can arrive before a due timer fires.
-            if touch.timestamp - sweepLastEntry >= Self.sweepHoldDuration {
+            // Once committed, modifiers swept onto afterwards take the committed state.
+            if sweepCommitted
+                || (sweepHoveredButton != nil && touch.timestamp - sweepLastEntry >= Self.sweepHoldDuration) {
                 applySweep(state: sweepUnlocks ? .inactive : .locked)
                 if !sweepCommitted { playHaptic() }
-            } else if !sweepCommitted {
-                if sweepButtons.count == 1 {
-                    sendKey()
-                } else {
-                    applySweep(state: sweepClears ? .inactive : .oneShot)
-                }
+            } else if sweepButtons.count > 1 {
+                applySweep(state: sweepClears ? .inactive : .oneShot)
+                playHaptic()
+            } else if !sweepAppliedOnTouchDown {
+                sendKey()
                 playHaptic()
             }
         }
         endSweep()
     }
 
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    // Also reached from touchesCancelled and window removal.
+    override func cancelTouchInteraction() {
+        super.cancelTouchInteraction()
         endSweep()
-        super.touchesCancelled(touches, with: event)
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        if window == nil { endSweep() }
     }
 
     private func scheduleSweep(after delay: TimeInterval) {
