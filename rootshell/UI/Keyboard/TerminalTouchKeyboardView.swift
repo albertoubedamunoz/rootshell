@@ -526,6 +526,8 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         var deferredPoint: CGPoint?
         let order: UInt64
         var selection: Model.TouchSelection?
+        /// Toolbar modifiers this touch has swiped across, starting with `initial`.
+        var sweep: Model.ModifierSweep<TerminalTouchKeycap>?
         init(key: TerminalTouchKeycap, point: CGPoint, order: UInt64, selection: Model.TouchSelection?) {
             initial = key; current = key; origin = point; anchor = point
             self.order = order; self.selection = selection
@@ -1448,6 +1450,10 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
         if case .modifier(let mod) = key.key.action {
             modifierState.begin(mod)
             publishModifiers()
+            if controls.contains(where: { $0 === key }) {
+                contact.sweep = Model.ModifierSweep(key, modifier: mod, at: touch.timestamp)
+                restartSweepHold(contact)
+            }
         } else {
             showPreview(key)
             contact.task = Task { @MainActor [weak self, weak contact, key] in
@@ -1478,6 +1484,20 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 default: break
                 }
             }
+        }
+    }
+
+    /// Marks a toolbar modifier swipe as held once the finger rests on its last key.
+    private func restartSweepHold(_ contact: Contact) {
+        contact.task?.cancel()
+        contact.task = Task { @MainActor [weak self, weak contact] in
+            try? await Task.sleep(for: .seconds(Model.Modifiers.sweepHold))
+            guard !Task.isCancelled, let self, let contact, self.contacts.values.contains(where: { $0 === contact }),
+                  self.canSend, let sweep = contact.sweep,
+                  self.modifierState.heldSweepLocks(sweep.modifiers) != nil,
+                  contact.sweep?.commitHold(at: ProcessInfo.processInfo.systemUptime) == true else { return }
+            self.feedback()
+            self.updateModifierAppearance()
         }
     }
 
@@ -1535,7 +1555,25 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
                 }
                 continue
             }
-            if case .modifier = contact.initial.key.action { continue }
+            if case .modifier = contact.initial.key.action {
+                if var sweep = contact.sweep {
+                    var hovered: (cap: TerminalTouchKeycap, modifier: Model.Modifier)?
+                    if let next = controls.first(where: { $0.frame.contains(point) }), case .modifier(let mod) = next.key.action {
+                        hovered = (next, mod)
+                    }
+                    let joined = sweep.keys.count
+                    let restarted = sweep.hover(hovered?.cap, modifier: hovered?.modifier, at: touch.timestamp)
+                    contact.sweep = sweep
+                    if let hovered, sweep.keys.count > joined {
+                        modifierState.begin(hovered.modifier)
+                        publishModifiers()
+                        feedback()
+                        if clickSoundEnabled { TerminalTouchKeyClick.shared.play(keyboardStyle.clickProfile) }
+                    }
+                    if restarted { restartSweepHold(contact) }
+                }
+                continue
+            }
             if contact.selection != nil {
                 // With another finger down, sliding onto an action key finishes the letter.
                 if contacts.count > 1, typingGeometry.bounds.contains(point), typingGeometry.textHit(at: point) == nil {
@@ -1673,7 +1711,14 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             contact.current?.pressed = false
             contact.initial.pressed = false
             if case .modifier(let mod) = contact.initial.key.action {
-                modifierState.end(mod, at: touch.timestamp, cancelled: cancelled || !releases(contact.initial, at: touch.location(in: self)))
+                let point = touch.location(in: self)
+                if let sweep = contact.sweep {
+                    // Checks the timestamp too: release can arrive before a due hold task runs.
+                    modifierState.endSweep(sweep.modifiers, at: touch.timestamp, holding: sweep.holding(at: touch.timestamp),
+                                           cancelled: cancelled || !sweep.keys.contains(where: { releases($0, at: point) }))
+                } else {
+                    modifierState.end(mod, at: touch.timestamp, cancelled: cancelled || !releases(contact.initial, at: point))
+                }
                 publishModifiers()
             } else if !cancelled, canSend {
                 if contact.accent, accents.frame.insetBy(dx: -20, dy: -70).contains(touch.location(in: self)) {
@@ -1699,7 +1744,9 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     private func validateToolbarContact(_ contact: Contact, touch: UITouch) -> Bool {
         let point = touch.location(in: window)
         // Joystick drags are intentional; other spaced-bottom controls are taps.
+        // Modifier swipes stay in the row; leaving it vertically still cancels.
         let valid = canSend && (contact.interactionMode != .spacedBottom || contact.initial.key.action == .joystick
+            || (contact.sweep != nil && abs(point.y - contact.windowOrigin.y) <= 10)
             || (hypot(point.x - contact.windowOrigin.x, point.y - contact.windowOrigin.y) <= 10
                 && contact.initial.frame.contains(touch.location(in: self))))
         guard valid else {
@@ -1708,7 +1755,11 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             contact.current?.pressed = false
             contact.initial.pressed = false
             if case .modifier(let modifier) = contact.initial.key.action {
-                modifierState.end(modifier, at: touch.timestamp, cancelled: true)
+                if let sweep = contact.sweep {
+                    modifierState.endSweep(sweep.modifiers, at: touch.timestamp, holding: false, cancelled: true)
+                } else {
+                    modifierState.end(modifier, at: touch.timestamp, cancelled: true)
+                }
                 publishModifiers()
             }
             return false
@@ -1758,6 +1809,13 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
     }
 
     private func updateModifierAppearance() {
+        // A held swipe shows the lock state it will leave on release.
+        var heldLocks: [Model.Modifier: Bool] = [:]
+        for contact in contacts.values {
+            guard let sweep = contact.sweep, sweep.held,
+                  let locks = modifierState.heldSweepLocks(sweep.modifiers) else { continue }
+            for modifier in sweep.modifiers { heldLocks[modifier] = locks }
+        }
         for cap in controls + rows.flatMap({ $0 }) + toolbarDrawerButtons.flatMap({ $0 }).map(\.keycap) {
             if cap.key.action == .drawer { cap.selected = toolbarDrawerState != .closed }
             switch cap.key.action {
@@ -1773,11 +1831,12 @@ final class TerminalTouchKeyboardView: UIView, KeyboardButtonDelegate, UIGesture
             default: break
             }
             if case .modifier(let mod) = cap.key.action {
+                let locked = heldLocks[mod] ?? modifierState.locked.contains(mod)
                 cap.selected = modifierState.isActive(mod)
-                cap.locked = modifierState.locked.contains(mod)
-                cap.accessibilityValue = modifierState.locked.contains(mod) ? "Locked" : (cap.selected ? "On" : "Off")
+                cap.locked = locked
+                cap.accessibilityValue = locked ? "Locked" : (cap.selected ? "On" : "Off")
                 if mod == .shift {
-                    cap.setSymbol(glyphsEnabled ? (modifierState.locked.contains(mod) ? "capslock.fill" : (cap.selected ? "shift.fill" : "shift")) : nil)
+                    cap.setSymbol(glyphsEnabled ? (locked ? "capslock.fill" : (cap.selected ? "shift.fill" : "shift")) : nil)
                 }
             } else if case .text(let text) = cap.key.action {
                 cap.updateColor()
