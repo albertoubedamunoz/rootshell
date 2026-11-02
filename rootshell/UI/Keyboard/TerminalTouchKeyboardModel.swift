@@ -1,6 +1,31 @@
 import Foundation
 import CoreGraphics
 
+/// Shared drawer gesture geometry for both keyboard implementations.
+nonisolated struct KeyboardToolbarDrawerDrag {
+    let initialCount: Int
+    let origin: CGPoint
+    let buttonFrame: CGRect
+    let rowHeight: CGFloat
+    private(set) var isDragging = false
+    private(set) var isQuickSelection = false
+
+    mutating func update(at location: CGPoint) -> Int? {
+        if abs(location.x - origin.x) >= buttonFrame.width { isQuickSelection = true }
+        guard isDragging || isQuickSelection || location.y < buttonFrame.minY
+            || location.y > buttonFrame.maxY else { return nil }
+        isDragging = true
+        let height = max(rowHeight, 1)
+        if location.y < buttonFrame.minY {
+            return initialCount + Int(ceil((buttonFrame.minY - location.y) / height))
+        }
+        if location.y > buttonFrame.maxY {
+            return max(0, initialCount - Int(ceil((location.y - buttonFrame.maxY) / height)))
+        }
+        return initialCount
+    }
+}
+
 /// One partition for the system toolbar and the touch keyboard. Runtime buttons
 /// reserve main-row slots without changing the user's saved configuration.
 nonisolated enum KeyboardToolbarOverflow {
@@ -750,7 +775,7 @@ nonisolated enum TerminalTouchKeyboardModel {
 
     /// A detached card moves the Apple Keyboard key to its footer, as Apple's
     /// floating keyboard does with its globe, so the row matches Apple's widths.
-    static func rows(page: Page, floating: Bool = false) -> [[Key]] {
+    static func rows(page: Page, floating: Bool = false, layout: Layout = .us) -> [[Key]] {
         func text(_ string: String) -> [Key] { string.map { Key(title: String($0), action: .text(String($0))) } }
         let shift = Key(title: "Shift", action: .modifier(.shift), symbol: "shift", weight: 1.5)
         let delete = Key(title: "Delete", action: .key("\u{7f}"), symbol: "delete.left", weight: 1.5)
@@ -759,9 +784,13 @@ nonisolated enum TerminalTouchKeyboardModel {
         let third: [Key]
         switch page {
         case .letters:
-            first = text("qwertyuiop")
-            second = text("asdfghjkl")
-            third = [shift] + text("zxcvbnm") + [delete]
+            let letters = layout.letterRows
+            // Shift and Delete fill the third row out to the widest row.
+            let edge = (Double(letters.map(\.count).max() ?? 10) - Double(letters[2].count)) / 2
+            func edged(_ key: Key) -> Key { var key = key; key.weight = edge; return key }
+            first = text(letters[0])
+            second = text(letters[1])
+            third = [edged(shift)] + text(letters[2]) + [edged(delete)]
         case .numbers:
             first = text("1234567890")
             second = text("-/:;()$&@\"")
@@ -777,6 +806,14 @@ nonisolated enum TerminalTouchKeyboardModel {
             Key(title: "space", action: .text(" "), weight: floating ? 5 : 5.8, accessibility: "Space. Hold and drag to move the terminal cursor."),
             Key(title: "return", action: .key("\r"), symbol: "return", weight: floating ? 2.5 : 1.8)
         ]]
+    }
+
+    /// Letter units across the widest of the three typing rows.
+    static func columns(_ rows: [[Key]]) -> Double { rows.prefix(3).map(weight).max() ?? 10 }
+
+    /// Centers a shorter typing row so every letter key keeps one width.
+    static func rowInset(weight: Double, columns: Double, width: Double) -> Double {
+        2 + max(0, columns - weight) / 2 * width / max(1, columns)
     }
 
     /// Full cells are hit targets; the visual caps are inset inside them.
@@ -937,6 +974,15 @@ nonisolated enum TerminalTouchKeyboardModel {
                       y: available.minY + (available.height - size.height) * y, width: size.width, height: size.height)
     }
 
+    /// Grow drawers upward while keeping the typing area and bottom edge fixed.
+    /// Only move the bottom edge when the available region requires clamping.
+    static func resizedFloatingFrame(_ frame: CGRect, height: CGFloat, in available: CGRect) -> CGRect {
+        let size = floatingFrame(in: available, height: height, anchor: .zero).size
+        return CGRect(x: min(max(frame.minX, available.minX), available.maxX - size.width),
+                      y: min(max(frame.maxY - size.height, available.minY), available.maxY - size.height),
+                      width: size.width, height: size.height)
+    }
+
     /// Moves a floating card off the Duo's fold, to the side holding most of it
     /// when the card fits there. All rects share coordinates.
     static func floatingFrame(_ frame: CGRect, avoiding fold: CGRect?, in available: CGRect) -> CGRect {
@@ -1011,11 +1057,6 @@ nonisolated enum TerminalTouchKeyboardModel {
             }
         }
     }
-
-    static let accents: [String: String] = [
-        "a": "àáâäæãåā", "e": "èéêëēėę", "i": "ìíîïīį", "o": "òóôöõøœō",
-        "u": "ùúûüū", "c": "çćč", "n": "ñń", "s": "ßśš", "y": "ÿý", "z": "žźż"
-    ]
 
     struct SuggestionContext: Equatable, Sendable {
         let document: String
