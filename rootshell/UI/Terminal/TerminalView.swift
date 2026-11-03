@@ -1480,6 +1480,19 @@ extension Ghostty {
         /// even when layout fires before `.running`.
         var scrollbackWrittenAwaitingTrailer: Bool = false
 
+        /// Never replace a known-good save with the empty/spinner surface
+        /// while its restoration bytes are still being replayed.
+        var scrollbackRestoreReplayPending = false
+        var scrollbackRestoreReplayGeneration: UInt64 = 0
+
+        var canPersistTerminalContents: Bool {
+            restorationState == .none
+                && !pendingScrollbackRestore
+                && !pendingScrollbackRestoreForLayout
+                && !scrollbackWrittenAwaitingTrailer
+                && !scrollbackRestoreReplayPending
+        }
+
         /// Set true when the embedded trzsz session reaches `.running` and
         /// `applyResumeTrailer` has fired. The layout-deferred restore path
         /// uses this to decide whether to keep the gate open: if `.running` has
@@ -2189,7 +2202,10 @@ extension Ghostty {
                 && !rightBinding.isAppTabNavigation
             appTabSwipePanGesture?.isEnabled = scrollMode
                 && (leftBinding.isAppTabNavigation || rightBinding.isAppTabNavigation)
-            captureScrollPanGesture?.isEnabled = scrollMode && (captured || usesHerdrFallbackScrolling)
+            // Not gated on capture: the cached state can lag the C side, and a
+            // recognizer enabled once it catches up misses the touch in progress.
+            // gestureRecognizerShouldBegin checks the live state instead.
+            captureScrollPanGesture?.isEnabled = scrollMode
             captureLongPressGesture?.isEnabled = scrollMode && captured
             pinchZoomGesture?.isEnabled = scrollMode
             let twoFingerLongPressDuration = TwoFingerLongPressSetting.storedDuration()
