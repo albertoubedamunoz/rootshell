@@ -33,6 +33,8 @@ struct TerminalSplitTreeView: UIViewRepresentable {
     /// True when the visible focused terminal presents OSC 9;4 progress on the
     /// integrated tab edge instead of as a duplicate straight pane-local bar.
     var routesFocusedProgressToIntegratedEdge: Bool = false
+    /// Pane-local progress bars hug the edge facing the visible tab strip.
+    var progressBarPosition: TabBarPosition = .top
     /// Set while Integrated tabs join the cards; the top rim opens under the tab.
     var integratedTabJoin: IntegratedTabJoin?
     /// An app-tab swipe is sliding this tab.
@@ -69,6 +71,7 @@ struct TerminalSplitTreeView: UIViewRepresentable {
         uiView.reservesTerminalBottomSafeArea = !duoLayout.extendsTerminalToVerticalEdges
         uiView.terminalTopSafeEdge = terminalTopSafeEdge
         uiView.routesFocusedProgressToIntegratedEdge = routesFocusedProgressToIntegratedEdge
+        uiView.progressBarPosition = progressBarPosition
         uiView.paneUnderlay = paneUnderlay
         uiView.update(tree: tree, focusedPane: focusedPane)
     }
@@ -464,6 +467,12 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     var routesFocusedProgressToIntegratedEdge: Bool = false {
         didSet {
             guard routesFocusedProgressToIntegratedEdge != oldValue else { return }
+            refreshProgressBarRouting()
+        }
+    }
+    var progressBarPosition: TabBarPosition = .top {
+        didSet {
+            guard progressBarPosition != oldValue else { return }
             refreshProgressBarRouting()
         }
     }
@@ -1500,6 +1509,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
         let suppressesLocalBar = routesFocusedProgressToIntegratedEdge
             && isActiveTab
             && focusedID == identifier
+        scrollView.progressBarPosition = progressBarPosition
         scrollView.setProgressBarPresentationSuppressed(suppressesLocalBar)
     }
 
@@ -1728,8 +1738,7 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
     }
 
     private func applyCardShape(to container: UIView, rounded: Bool) {
-        container.layer.cornerRadius = rounded ? PaneCardStyle.cornerRadius : 0
-        container.layer.cornerCurve = .continuous
+        container.applyPaneCorners(rounded: rounded)
         #if targetEnvironment(macCatalyst)
         // TerminalScrollView always clips on Catalyst.
         container.clipsToBounds = rounded || container is Ghostty.TerminalScrollView
@@ -1817,7 +1826,8 @@ final class SplitTreeHostingView: UIView, IntegratedTabJoinObserver {
             guard let container = attachedContainers[ObjectIdentifier(pane)] as? Ghostty.TerminalScrollView,
                   container.superview === self, !container.isHidden else { continue }
             panes.append(.init(
-                frame: container.frame, cornerRadius: container.layer.cornerRadius,
+                // Not the layer's radius, which doesn't report a corner configuration.
+                frame: container.frame, cornerRadius: roundsPanes ? PaneCardStyle.cornerRadius : 0,
                 color: cardSurfaceColor(for: container.terminalView).withAlphaComponent(opacity)))
         }
         let gaps = roundsPanes ? cardBackdropColor.map { PaneUnderlayModel.Gaps(path: cardGapPath(), color: $0) } : nil
