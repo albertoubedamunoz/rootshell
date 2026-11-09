@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kitknox/rootshell-vnc.git",
       "state" : {
-        "revision" : "505707516f54c60a32368eb594272d216823fb85",
-        "version" : "0.1.10"
+        "revision" : "3c0924c9e7769b93fabd8e811e603c68909aa4d1",
+        "version" : "0.1.12"
       }
     },
     {

@@ -22,6 +22,7 @@ struct KVMPaneRootView: View {
                     pane: pane,
                     pointerSpeed: pointerSpeed,
                     cursorHeight: cursorSizeDefault.points,
+                    showsLocalCursor: pane.showsLocalCursor,
                     brightnessGain: brightnessManager.effectiveGain)
 
                 KVMSessionOverlay(pane: pane)
@@ -72,13 +73,21 @@ private struct KVMScreenContent: View {
     @Bindable private var session: KVMSession
     let pointerSpeed: Double
     let cursorHeight: CGFloat
+    let showsLocalCursor: Bool
     let brightnessGain: Double
 
-    init(pane: KVMPaneView, pointerSpeed: Double, cursorHeight: CGFloat, brightnessGain: Double) {
+    init(
+        pane: KVMPaneView,
+        pointerSpeed: Double,
+        cursorHeight: CGFloat,
+        showsLocalCursor: Bool,
+        brightnessGain: Double
+    ) {
         self.pane = pane
         self._session = Bindable(wrappedValue: pane.session)
         self.pointerSpeed = pointerSpeed
         self.cursorHeight = cursorHeight
+        self.showsLocalCursor = showsLocalCursor
         self.brightnessGain = brightnessGain
     }
 
@@ -97,6 +106,7 @@ private struct KVMScreenContent: View {
             pointerSpeed: pointerSpeed,
             cursorHeight: cursorHeight,
             serverRendersCursor: true,
+            showsLocalCursorDot: showsLocalCursor,
             brightnessGain: brightnessGain,
             disconnect: { session.disconnect() },
             hudMenuExtras: { KVMHUDMenuExtras(pane: pane) })
@@ -205,6 +215,7 @@ private struct KVMHUDMenuExtras: View {
             #if !os(visionOS)
             KVMKeyboardToolbarToggle(pane: pane)
             #endif
+            KVMLocalCursorToggle(pane: pane)
             Button {
                 NotificationCenter.default.post(name: .vncShowConnectionInfo, object: pane)
             } label: {
@@ -251,6 +262,16 @@ private struct KVMKeyboardToolbarToggle: View {
     }
 }
 #endif
+
+private struct KVMLocalCursorToggle: View {
+    @ObservedObject var pane: KVMPaneView
+
+    var body: some View {
+        Toggle(isOn: $pane.showsLocalCursor) {
+            Label("Local Cursor", systemImage: "smallcircle.filled.circle")
+        }
+    }
+}
 
 // MARK: - Session cards
 
@@ -320,12 +341,9 @@ private struct KVMSessionOverlay: View {
                 }
             case .connected:
                 if session.streamer.sourceOnline == false {
-                    KVMNoSignalCard(subtitle: subtitle)
+                    KVMNoVideoCard(waiting: false, subtitle: subtitle)
                 } else if !session.hasFirstFrame {
-                    VNCConnectingCard(
-                        subtitle: subtitle,
-                        status: String(localized: "Waiting for video…"),
-                        onCancel: { session.disconnect() })
+                    KVMNoVideoCard(waiting: true, subtitle: subtitle)
                 }
             default:
                 EmptyView()
@@ -466,27 +484,36 @@ private struct KVMOneTimeCodeCard: View {
     }
 }
 
-private struct KVMNoSignalCard: View {
+/// Shown while connected without video. Keyboard and mouse pass through to
+/// the computer, which is how a sleeping display wakes up.
+private struct KVMNoVideoCard: View {
+    /// No frame yet, versus the device reporting no signal.
+    let waiting: Bool
     let subtitle: String
 
     var body: some View {
         VNCOverlayCard(
-            title: String(localized: "No Video Signal"),
+            title: waiting ? String(localized: "Waiting for Video") : String(localized: "No Video Signal"),
             subtitle: subtitle,
             icon: {
-                Image(systemName: "display.trianglebadge.exclamationmark")
-                    .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .symbolRenderingMode(.hierarchical)
+                if waiting {
+                    ProgressView().controlSize(.large)
+                } else {
+                    Image(systemName: "display.trianglebadge.exclamationmark")
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .symbolRenderingMode(.hierarchical)
+                }
             },
             content: {
-                Text("The computer connected to the KVM isn't sending video. It may be asleep or turned off.")
+                Text(waiting
+                    ? String(localized: "If the computer's display is asleep, press a key or move the pointer to wake it.")
+                    : String(localized: "The computer connected to the KVM isn't sending video. It may be asleep or turned off. Press a key or move the pointer to wake it."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 320)
             })
-        // Keyboard and mouse still reach the computer, e.g. to wake it.
         .allowsHitTesting(false)
     }
 }
