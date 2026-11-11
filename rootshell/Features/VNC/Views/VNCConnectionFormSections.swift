@@ -41,6 +41,7 @@ struct VNCFormState: Hashable {
     var savePassword: Bool = true
     var security: VNCConnectionConfig.SecurityPreference = .automatic
     var quality: VNCConnectionConfig.QualityMode = .adaptive
+    var highPerformanceBandwidth: VNCConnectionConfig.HighPerformanceBandwidth = .automatic
     var keyboardToolbar: VNCConnectionConfig.KeyboardToolbarPreference = .followAppSetting
     var remoteSystem: VNCConnectionConfig.RemoteSystemPreference = .automatic
     var automaticallyEnterFullScreen: Bool = false
@@ -80,6 +81,7 @@ struct VNCFormState: Hashable {
         username = config.username ?? ""
         security = config.security
         quality = config.quality
+        highPerformanceBandwidth = config.highPerformanceBandwidth
         keyboardToolbar = config.keyboardToolbar
         remoteSystem = config.remoteSystem
         automaticallyEnterFullScreen = config.automaticallyEnterFullScreen
@@ -214,6 +216,7 @@ struct VNCFormState: Hashable {
             port: portNum,
             username: trimmedUsername.isEmpty ? nil : trimmedUsername,
             quality: quality,
+            highPerformanceBandwidth: highPerformanceBandwidth,
             security: security,
             displaySizingModeRaw: displaySizingModeRaw,
             displayModeRaw: displayModeRaw,
@@ -469,11 +472,23 @@ struct VNCConnectionFormSections: View {
                             Text(choice.displayName).tag(choice)
                         }
                     }
+                } else {
+                    Picker("Bandwidth", selection: $form.highPerformanceBandwidth) {
+                        ForEach(VNCConnectionConfig.HighPerformanceBandwidth.allCases, id: \.self) { choice in
+                            Text(choice.displayName).tag(choice)
+                        }
+                    }
                 }
 
                 Text(packageQualityMode.explanation)
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                if form.quality == .adaptive {
+                    Text(bandwidthExplanation)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .themedRow()
         } header: {
@@ -485,6 +500,17 @@ struct VNCConnectionFormSections: View {
         }
     }
 
+    private var bandwidthExplanation: String {
+        switch form.highPerformanceBandwidth {
+        case .automatic:
+            String(localized: "Uses Low Bandwidth on cellular and mesh VPN connections such as Tailscale, and Full otherwise.")
+        case .full:
+            String(localized: "Asks the Mac for 20 to 60 Mbps. Sharpest motion, but needs a fast, direct network.")
+        case .low:
+            String(localized: "Asks the Mac for 0.3 to 6 Mbps. Keeps working on slow networks; fast motion looks softer.")
+        }
+    }
+
     private var packageQualityMode: VNCConfiguration.VideoQualityMode {
         VNCConfiguration.VideoQualityMode(rawValue: form.quality.rawValue) ?? .standard
     }
@@ -492,15 +518,22 @@ struct VNCConnectionFormSections: View {
     // MARK: Display sizing
 
     /// Typed views over the raw stored values, defaulted like the package
-    /// configuration (matchClient / oneDisplay).
+    /// configuration (Match Client only for High Performance / oneDisplay).
     private var displaySizing: Binding<VNCConfiguration.DisplaySizingMode> {
         Binding(
             get: {
                 form.displaySizingModeRaw.flatMap {
                     VNCConfiguration.DisplaySizingMode(rawValue: $0)
-                } ?? .matchClient
+                } ?? (form.quality == .adaptive ? .matchClient : .remoteDisplay)
             },
-            set: { form.displaySizingModeRaw = $0.rawValue }
+            set: { sizing in
+                form.displaySizingModeRaw = sizing.rawValue
+                // A stored combined topology would reset sizing to Remote Display.
+                if sizing == .matchClient,
+                   form.displayModeRaw == VNCConfiguration.DisplayMode.allDisplaysCombined.rawValue {
+                    form.displayModeRaw = VNCConfiguration.DisplayMode.oneDisplay.rawValue
+                }
+            }
         )
     }
 
@@ -518,7 +551,7 @@ struct VNCConnectionFormSections: View {
     private var displaySizingSection: some View {
         Section("Remote Display Size") {
             Group {
-                if form.quality == .adaptive, displaySizing.wrappedValue == .matchClient {
+                if displaySizing.wrappedValue == .matchClient {
                     LabeledContent("Display Mode", value: String(localized: "One Virtual Display"))
                     Text("Match Client creates one client-sized virtual display.")
                         .font(.caption)
@@ -532,18 +565,16 @@ struct VNCConnectionFormSections: View {
                     }
                 }
 
-                if form.quality == .adaptive {
-                    Picker("Sizing", selection: displaySizing) {
-                        ForEach(VNCConfiguration.DisplaySizingMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
+                Picker("Sizing", selection: displaySizing) {
+                    ForEach(VNCConfiguration.DisplaySizingMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
                     }
-                    .pickerStyle(.segmented)
-
-                    Text(displaySizing.wrappedValue.explanation)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
+                .pickerStyle(.segmented)
+
+                Text(displaySizing.wrappedValue.explanation)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .themedRow()
         }

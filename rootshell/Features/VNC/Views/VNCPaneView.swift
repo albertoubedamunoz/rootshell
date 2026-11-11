@@ -17,18 +17,18 @@ import RFBTransport
 /// available in the connection editor, but is intentionally not part of this
 /// quick switch.
 fileprivate enum VNCQuickMode: CaseIterable, Hashable {
-    case standard
+    case standardRemote
+    case standardMatchClient
     case highPerformanceRemote
     case highPerformanceMatchClient
 
     init?(configuration: VNCConfiguration) {
+        let matchesClient = configuration.displaySizingMode == .matchClient
         switch configuration.videoQualityMode {
         case .standard:
-            self = .standard
+            self = matchesClient ? .standardMatchClient : .standardRemote
         case .adaptive:
-            self = configuration.displaySizingMode == .matchClient
-                ? .highPerformanceMatchClient
-                : .highPerformanceRemote
+            self = matchesClient ? .highPerformanceMatchClient : .highPerformanceRemote
         case .fullQuality:
             return nil
         }
@@ -36,8 +36,10 @@ fileprivate enum VNCQuickMode: CaseIterable, Hashable {
 
     var title: String {
         switch self {
-        case .standard:
-            return String(localized: "Standard", comment: "VNC HUD quick mode")
+        case .standardRemote:
+            return String(localized: "Standard · Remote Display", comment: "VNC HUD quick mode")
+        case .standardMatchClient:
+            return String(localized: "Standard · Match Client", comment: "VNC HUD quick mode")
         case .highPerformanceRemote:
             return String(localized: "High Performance · Remote Display", comment: "VNC HUD quick mode")
         case .highPerformanceMatchClient:
@@ -47,8 +49,10 @@ fileprivate enum VNCQuickMode: CaseIterable, Hashable {
 
     var systemImage: String {
         switch self {
-        case .standard:
+        case .standardRemote:
             return "network"
+        case .standardMatchClient:
+            return "aspectratio"
         case .highPerformanceRemote:
             return "display"
         case .highPerformanceMatchClient:
@@ -57,18 +61,15 @@ fileprivate enum VNCQuickMode: CaseIterable, Hashable {
     }
 
     var requiresHighPerformance: Bool {
-        self != .standard
+        self == .highPerformanceRemote || self == .highPerformanceMatchClient
     }
 
     func apply(to configuration: inout VNCConfiguration) {
+        configuration.videoQualityMode = requiresHighPerformance ? .adaptive : .standard
         switch self {
-        case .standard:
-            configuration.videoQualityMode = .standard
-        case .highPerformanceRemote:
-            configuration.videoQualityMode = .adaptive
+        case .standardRemote, .highPerformanceRemote:
             configuration.displaySizingMode = .remoteDisplay
-        case .highPerformanceMatchClient:
-            configuration.videoQualityMode = .adaptive
+        case .standardMatchClient, .highPerformanceMatchClient:
             configuration.displaySizingMode = .matchClient
         }
     }
@@ -261,10 +262,11 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
     /// independent of the profile's initial auto-full-screen preference.
     private var shouldRestoreFullScreenAfterTabSwitch = false
 
-    /// iPhone-only 3-finger app-tab swipe (see installTabSwipeGestureIfNeeded).
+    /// 3-finger app-tab / pane swipe (see installTabSwipeGestureIfNeeded).
     private var tabSwipePanGesture: UIPanGestureRecognizer?
     private var activeAppTabSwipeDirection: SwipeDirection?
     private var activeAppTabSwipeAccepted = false
+    private var activePaneCycle: (direction: SwipeDirection, preset: SwipeGesturePreset)?
 
     init(config: VNCConnectionConfig, windowId: String, uuid: UUID = UUID()) {
         self.config = config
@@ -1110,9 +1112,10 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
     /// bar/sidebar reachable. The recognizer rides the pane through the
     /// full-screen takeover, where it doubles as an extra exit path (the
     /// tab-change watchdog exits the takeover when the swipe commits).
+    /// iPad installs it for pane presets only: zoom has no on-screen exit.
     private func installTabSwipeGestureIfNeeded() {
-        guard tabSwipePanGesture == nil,
-              UIDevice.current.userInterfaceIdiom == .phone else { return }
+        let idiom = UIDevice.current.userInterfaceIdiom
+        guard tabSwipePanGesture == nil, idiom == .phone || idiom == .pad else { return }
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleAppTabSwipePan))
         pan.minimumNumberOfTouches = 3
@@ -1140,11 +1143,17 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
 
         let x = abs(velocity.x) >= abs(translation.x) ? velocity.x : translation.x
         let direction: SwipeDirection = x < 0 ? .left : .right
-        guard SwipeGestureManager.shared.binding(for: direction).isAppTabNavigation else {
-            return false
+        let binding = SwipeGestureManager.shared.binding(for: direction, area: swipeStartArea(of: pan))
+        activePaneCycle = nil
+        guard let preset = appTabPreset(for: binding) else {
+            // Multi-pane tab with a pane preset: fire on release.
+            guard case .preset(let panePreset) = binding, panePreset.isPaneCycle else { return false }
+            activePaneCycle = (direction, panePreset)
+            return true
         }
 
-        guard requestAppTabSwipeBegin(direction: direction, velocityX: velocity.x) else {
+        guard UIDevice.current.userInterfaceIdiom == .phone,
+              requestAppTabSwipeBegin(direction: direction, velocityX: velocity.x, preset: preset) else {
             activeAppTabSwipeDirection = nil
             activeAppTabSwipeAccepted = false
             return false
@@ -1167,6 +1176,21 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
     /// Same math as the terminal's `handleAppTabSwipePan` so the swipe
     /// feels identical across pane types.
     @objc private func handleAppTabSwipePan(_ gesture: UIPanGestureRecognizer) {
+        if let paneCycle = activePaneCycle {
+            switch gesture.state {
+            case .ended:
+                activePaneCycle = nil
+                finishPaneCycleSwipe(paneCycle.preset, direction: paneCycle.direction,
+                                     translationX: gesture.translation(in: self).x,
+                                     velocityX: gesture.velocity(in: self).x)
+            case .cancelled, .failed:
+                activePaneCycle = nil
+            default:
+                break
+            }
+            return
+        }
+
         let direction: SwipeDirection
         if let active = activeAppTabSwipeDirection {
             direction = active
