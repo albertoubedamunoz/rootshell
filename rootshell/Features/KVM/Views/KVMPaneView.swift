@@ -146,6 +146,7 @@ final class KVMPaneView: SplitPaneView, ObservableObject {
     func captureKeyboard() {
         KeyboardTracker.shared.setInputOwnerWindow(window)
         keyboardCapture.capture()
+        keyboardCoordinator?.captureDidChange()
     }
 
     // MARK: - Lifecycle
@@ -169,6 +170,10 @@ final class KVMPaneView: SplitPaneView, ObservableObject {
 
     override var keyboardAccessoryFrameInScreen: CGRect? {
         keyboardCoordinator?.keyboardAccessoryFrameInScreen
+    }
+
+    override var dockedTouchKeyboardFrameInScreen: CGRect? {
+        keyboardCoordinator?.dockedTouchKeyboardFrameInScreen
     }
 
     override var reservedKeyboardToolbarHeightAtBottom: CGFloat {
@@ -298,6 +303,7 @@ final class KVMPaneView: SplitPaneView, ObservableObject {
     func pasteClipboard() {
         guard let text = UIPasteboard.general.string, !text.isEmpty else { return }
         ClipboardHistoryManager.shared.record(text, source: .paste)
+        keyboardCoordinator?.noteUserInput()
         session.paste(text)
     }
 
@@ -561,6 +567,7 @@ extension KVMPaneView: RemoteScreenPane {
         return reason
     }
     var usesAppleModifierConvention: Bool { false }
+    var remoteSessionIsConnected: Bool { session.connectionState.isConnected }
 
     func sendKeyboardToolbarKeysym(down: Bool, keysym: UInt32) {
         session.sendKeysym(down: down, keysym: keysym)

@@ -40,6 +40,8 @@ protocol RemoteScreenPane: SplitPaneView {
     var keyboardCoordinator: VNCKeyboardAccessoryCoordinator? { get }
     var effectiveKeyboardToolbarPreference: VNCConnectionConfig.KeyboardToolbarPreference { get }
     var usesAppleModifierConvention: Bool { get }
+    /// Observable through `withObservationTracking`.
+    var remoteSessionIsConnected: Bool { get }
     func captureKeyboard()
     func sendKeyboardToolbarKeysym(down: Bool, keysym: UInt32)
     func pasteFromKeyboardToolbar()
@@ -57,6 +59,16 @@ protocol RemoteScreenPane: SplitPaneView {
 }
 
 extension RemoteScreenPane {
+    /// The full-screen takeover covers a Duo's side rail, whose column the
+    /// window still reports as safe area; the HUD may dock at that edge.
+    var hudSafeAreaEdges: Edge.Set {
+        #if !os(visionOS) && !targetEnvironment(macCatalyst)
+        isDetachedForFullScreen && DuoHingeEvents.hasHinge ? .vertical : .all
+        #else
+        .all
+        #endif
+    }
+
     /// Chord for a rootshell-reserved shortcut sent to the remote computer.
     static func reservedShortcutChord(
         _ shortcut: VNCReservedKeyboardShortcut
