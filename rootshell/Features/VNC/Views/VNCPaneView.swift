@@ -263,7 +263,7 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
     private var shouldRestoreFullScreenAfterTabSwitch = false
 
     /// 3-finger app-tab / pane swipe (see installTabSwipeGestureIfNeeded).
-    private var tabSwipePanGesture: UIPanGestureRecognizer?
+    private var tabSwipePanGesture: RemoteScreenNavigationPan?
     private var activeAppTabSwipeDirection: SwipeDirection?
     private var activeAppTabSwipeAccepted = false
     private var activePaneCycle: (direction: SwipeDirection, preset: SwipeGesturePreset)?
@@ -374,12 +374,13 @@ final class VNCPaneView: SplitPaneView, ObservableObject {
         }
         clipboardSynchronizer.setHostFocused(isLogicallyFocused)
         clipboardSynchronizer.setHostWindowActive(windowIsActive)
-        attachHostingControllerIfNeeded()
+        // Before the root view: its HUD draws from the coordinator.
         #if !os(visionOS)
         if keyboardCoordinator == nil {
             keyboardCoordinator = VNCKeyboardAccessoryCoordinator(pane: self)
         }
         #endif
+        attachHostingControllerIfNeeded()
         connectIfNeeded()
     }
 
@@ -1197,12 +1198,12 @@ private extension VNCPaneView {
 
 extension VNCPaneView: UIGestureRecognizerDelegate {
 
-    /// iPhone escape hatch: the package's interaction view consumes all 1-2
-    /// finger touches (remote pointer, scroll, pinch zoom), so with the tab
-    /// bar hidden a VNC-only tab has no touch path to other tabs. A 3-finger
-    /// horizontal pan drives the same app-tab swipe pipeline as the
-    /// terminal's scroll-mode pan. Phone-only: iPad always has the tab
-    /// bar/sidebar reachable. The recognizer rides the pane through the
+    /// iPhone escape hatch: the package's interaction view consumes every
+    /// touch, so with the tab bar hidden a VNC-only tab has no touch path to
+    /// other tabs. A three-finger horizontal pan (four with the setting on)
+    /// that the remote gestures do not claim drives the same app-tab swipe
+    /// pipeline as the terminal's scroll-mode pan. Phone-only: iPad always
+    /// has the tab bar/sidebar reachable. The recognizer rides the pane through the
     /// full-screen takeover, where it doubles as an extra exit path (the
     /// tab-change watchdog exits the takeover when the swipe commits).
     /// iPad installs it for pane presets only: zoom has no on-screen exit.
@@ -1210,10 +1211,7 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
         let idiom = UIDevice.current.userInterfaceIdiom
         guard tabSwipePanGesture == nil, idiom == .phone || idiom == .pad else { return }
 
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleAppTabSwipePan))
-        pan.minimumNumberOfTouches = 3
-        pan.maximumNumberOfTouches = 3
-        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        let pan = RemoteScreenNavigationPan(target: self, action: #selector(handleAppTabSwipePan))
         pan.delegate = self
         addGestureRecognizer(pan)
         tabSwipePanGesture = pan
@@ -1224,7 +1222,7 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
     /// owning MainView (`.appTabSwipeBegan` with an accept callback).
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === tabSwipePanGesture,
-              let pan = gestureRecognizer as? UIPanGestureRecognizer else {
+              let pan = gestureRecognizer as? RemoteScreenNavigationPan else {
             return super.gestureRecognizerShouldBegin(gestureRecognizer)
         }
 
@@ -1236,6 +1234,7 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
 
         let x = abs(velocity.x) >= abs(translation.x) ? velocity.x : translation.x
         let direction: SwipeDirection = x < 0 ? .left : .right
+        guard !pan.yieldsToRemoteSwipe(direction) else { return false }
         let binding = SwipeGestureManager.shared.binding(for: direction, area: swipeStartArea(of: pan))
         activePaneCycle = nil
         guard let preset = appTabPreset(for: binding) else {
@@ -1256,14 +1255,14 @@ extension VNCPaneView: UIGestureRecognizerDelegate {
         return true
     }
 
-    /// Never let the package's 1-2 finger recognizers and our 3-finger pan
-    /// block each other. Only our recognizer carries this delegate; the
-    /// package's gesture wiring is untouched.
+    /// The package's recognizers see the same fingers and must not block our
+    /// pan, except a button hold, which takes the stroke once it begins.
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        gestureRecognizer === tabSwipePanGesture
+        guard let pan = tabSwipePanGesture, gestureRecognizer === pan else { return false }
+        return pan.recognizesSimultaneously(with: otherGestureRecognizer)
     }
 
     /// Same math as the terminal's `handleAppTabSwipePan` so the swipe
@@ -1410,6 +1409,11 @@ extension VNCPaneView: RemoteScreenPane {
     func pasteFromKeyboardToolbar() {
         clipboardSynchronizer.sendClipboard()
     }
+
+    func typePasswordFromKeyboardToolbar(pressingReturn: Bool) {
+        // Outside the Login Window the password goes to the field the user chose.
+        session.sendLoginPassword(pressingReturn: pressingReturn, keepingFocus: true)
+    }
 }
 
 // MARK: - Root View
@@ -1456,6 +1460,9 @@ struct VNCPaneRootView: View {
                         Menu {
                             #if !os(visionOS) && !targetEnvironment(macCatalyst)
                             VNCKeyboardToolbarMenuToggle(pane: pane)
+                            if let coordinator = pane.keyboardCoordinator {
+                                RemoteScreenFloatingToolbarMenuToggle(coordinator: coordinator)
+                            }
                             #endif
                             VNCQuickModeMenu(pane: pane)
                             VNCConnectionInfoMenuItem(pane: pane)
@@ -1464,6 +1471,24 @@ struct VNCPaneRootView: View {
                         }
                     }
                 )
+                #if !os(visionOS) && !targetEnvironment(macCatalyst)
+                .hudAccessory(
+                    isEnabled: pane.keyboardCoordinator?.hudModel.barEnabled ?? false,
+                    docksToBottom: pane.keyboardCoordinator?.hudModel.docksToBottom ?? false,
+                    buttonStyle: { width in
+                        pane.keyboardCoordinator?.hudModel.buttonStyle(availableWidth: width) ?? .standard
+                    },
+                    behind: { width in
+                        if let coordinator = pane.keyboardCoordinator {
+                            RemoteScreenHUDToolbar(coordinator: coordinator, availableWidth: width)
+                        }
+                    },
+                    beside: { style in
+                        if let coordinator = pane.keyboardCoordinator {
+                            RemoteScreenHUDButtons(coordinator: coordinator, style: style)
+                        }
+                    })
+                #endif
 
                 VNCSessionOverlay(pane: pane)
             }
