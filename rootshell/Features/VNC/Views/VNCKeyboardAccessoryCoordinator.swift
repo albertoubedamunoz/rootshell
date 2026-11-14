@@ -57,6 +57,9 @@ final class VNCKeyboardAccessoryCoordinator {
     /// keyboard is summoned again.
     private var manuallyDismissed = false
 
+    /// Hinge detection can land after setup; the trait change alone would miss it.
+    private var duoDisplayTask: Task<Void, Never>?
+
     #if !os(visionOS) && !targetEnvironment(macCatalyst)
     let hudModel = RemoteScreenHUDKeysModel()
     #endif
@@ -101,10 +104,16 @@ final class VNCKeyboardAccessoryCoordinator {
         observeCapture()
         #if targetEnvironment(macCatalyst) && STANDALONE
         // Capture stays on under the credential prompts, which take local text.
+        keyboardCapture.sendsSystemSpaceShortcuts = true
+        updateAppSwitcherShortcut()
         RemoteInputSourceHotKeys.shared.register(self) { [weak self] in
             guard let self, let pane = self.pane else { return false }
-            return self.keyboardIsFirstResponder && pane.remoteSessionIsConnected
+            // A local prompt can hold the keyboard with capture still on.
+            return self.keyboardIsFirstResponder && self.keyboardCapture.remoteInputIsFirstResponder
+                && pane.remoteSessionIsConnected
                 && pane.window?.isKeyWindow == true
+        } takesOtherAppHotKeys: { [weak self] in
+            self?.keyboardCapture.routesReservedHostShortcutsToVNC == true
         }
         observeRemoteConnection()
         #endif
@@ -117,9 +126,15 @@ final class VNCKeyboardAccessoryCoordinator {
                 self?.keyboardUpdateAccessoryForTraitCollection()
             }
         }
+        duoDisplayTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .duoDisplayDidChange) {
+                self?.keyboardUpdateAccessoryForTraitCollection()
+            }
+        }
     }
 
     func tearDown() {
+        duoDisplayTask?.cancel()
         #if targetEnvironment(macCatalyst) && STANDALONE
         RemoteInputSourceHotKeys.shared.unregister(self)
         #endif
@@ -182,13 +197,21 @@ final class VNCKeyboardAccessoryCoordinator {
     }
 
     #if targetEnvironment(macCatalyst) && STANDALONE
+    /// The local app switcher is off only while other apps' hot keys are.
+    private func updateAppSwitcherShortcut() {
+        keyboardCapture.sendsAppSwitcherShortcut = keyboardCapture.routesReservedHostShortcutsToVNC
+    }
+
     private func observeRemoteConnection() {
         withObservationTracking {
             _ = pane?.remoteSessionIsConnected
+            _ = keyboardCapture.routesReservedHostShortcutsToVNC
+            _ = keyboardCapture.remoteInputIsFirstResponder
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observeRemoteConnection()
+                self.updateAppSwitcherShortcut()
                 RemoteInputSourceHotKeys.shared.update()
             }
         }
@@ -329,9 +352,9 @@ final class VNCKeyboardAccessoryCoordinator {
         return 0
         #else
         guard showsAccessory,
-              let pane,
+              pane != nil,
               keyboardIsFirstResponder else { return 0 }
-        let fallbackHeight = KeyboardSizes.current(traitCollection: pane.traitCollection).toolbar.height
+        let fallbackHeight = keyboardSizes.toolbar.height
         if let accessoryHeight = controller.keyboardAccessory?.bounds.height,
            accessoryHeight > 0 {
             return max(fallbackHeight, accessoryHeight)
@@ -465,8 +488,8 @@ extension VNCKeyboardAccessoryCoordinator {
 
     /// The bar is sized from the toolbar's own key metrics, so every button matches.
     private func refreshHUDMetrics() {
-        guard let pane, let toolbar = controller.keyboardAccessory?.toolbarView else { return }
-        let sizes = KeyboardSizes.current(traitCollection: pane.traitCollection)
+        guard pane != nil, let toolbar = controller.keyboardAccessory?.toolbarView else { return }
+        let sizes = keyboardSizes
         let metrics = RemoteScreenHUDKeysModel.Metrics(
             keyCount: toolbar.mainRowKeyCount(forHostChrome: true),
             edgePadding: toolbar.mainRowEdgePadding,
@@ -495,6 +518,7 @@ extension VNCKeyboardAccessoryCoordinator: TerminalKeyboardAccessoryHost {
     var keyboardAIAgentOverlayActive: Bool { false }
     var keyboardToolbarOnlyMode: Bool { controller.toolbarOnlyMode }
     var keyboardAccessoryOmitsBottomSafeAreaStrip: Bool { true }
+    var keyboardSizes: KeyboardSizes { KeyboardSizes.screenSharing(traitCollection: keyboardHostView.traitCollection) }
 
     @discardableResult
     func keyboardBecomeFirstResponder() -> Bool {
@@ -533,8 +557,8 @@ extension VNCKeyboardAccessoryCoordinator: TerminalKeyboardAccessoryHost {
     func keyboardDidFinishAnimationLayout() {}
 
     func keyboardUpdateAccessoryForTraitCollection() {
-        guard let pane else { return }
-        controller.keyboardAccessory?.updateForTraitCollection(pane.traitCollection)
+        guard pane != nil else { return }
+        controller.keyboardAccessory?.updateSizes(keyboardSizes)
         #if !os(visionOS) && !targetEnvironment(macCatalyst)
         refreshHUDMetrics()
         #endif
