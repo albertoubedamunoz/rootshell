@@ -421,17 +421,37 @@ nonisolated enum ToolbarContext: String, CaseIterable, Hashable, Sendable {
 
 // MARK: - KeyboardToolbarStyle
 
-/// How the system keyboard's toolbar is drawn. Both sit on the keyboard's own
-/// backdrop; glass adds a capsule around the keys. Raw values are persisted.
-enum KeyboardToolbarStyle: String, CaseIterable, Sendable {
+/// How the system keyboard's toolbar is drawn. All sit on the keyboard's own
+/// backdrop; glass adds a capsule around the keys, and the glass bar a clear one
+/// the terminal's scrollback slides under. Raw values are persisted.
+nonisolated enum KeyboardToolbarStyle: String, CaseIterable, Sendable {
     case flat
     case glass
+    case glassBar = "glass-bar"
 
     var displayName: String {
         switch self {
         case .flat: return String(localized: "Flat")
         case .glass: return String(localized: "Glass")
+        case .glassBar: return String(localized: "Glass Bar")
         }
+    }
+
+    /// The glass bar needs the iPhone and iPad keyboard; elsewhere it reads as glass.
+    static var selectableCases: [KeyboardToolbarStyle] {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return [.flat, .glass]
+        #else
+        return allCases
+        #endif
+    }
+
+    var resolved: KeyboardToolbarStyle {
+        #if os(visionOS) || targetEnvironment(macCatalyst)
+        return self == .glassBar ? .glass : self
+        #else
+        return self
+        #endif
     }
 }
 
@@ -561,12 +581,18 @@ enum KeyboardToolbarSize: String, CaseIterable, Sendable {
         #if os(visionOS)
         0
         #else
-        SettingsStore.shared.value(currentMinimumKeyWidthKey)
+        normalizedMinimumKeyWidth(SettingsStore.shared.value(currentMinimumKeyWidthKey))
         #endif
     }
 
     /// What the minimum key width can be set to; its low end means automatic.
     static let minimumKeyWidthRange: ClosedRange<Double> = 40...140
+
+    /// Clamps into the range, or 0 for automatic. Stored values predating the
+    /// key's range may be huge or non-finite and would trap `Int(_:)`.
+    static func normalizedMinimumKeyWidth(_ width: Double) -> Double {
+        width > minimumKeyWidthRange.lowerBound ? min(width, minimumKeyWidthRange.upperBound) : 0
+    }
 }
 
 // MARK: - ToolbarLayoutConfig

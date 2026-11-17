@@ -50,6 +50,7 @@ class KeyboardToolbarManager {
         Settings.KeyboardToolbar.drawerToggleMode.name,
         Settings.KeyboardToolbar.keycaps.name,
         Settings.KeyboardToolbar.style.name,
+        Settings.KeyboardToolbar.glassBarWithTerminalKeyboard.name,
         Settings.KeyboardToolbar.glyphColoring.name,
         Settings.KeyboardToolbar.keyColors.name,
         Settings.KeyboardToolbar.minKeyWidthPhone.name,
@@ -134,6 +135,15 @@ class KeyboardToolbarManager {
         didSet {
             guard !isReloading, toolbarStyle != oldValue else { return }
             SettingsStore.shared.set(Settings.KeyboardToolbar.style, toolbarStyle)
+            notifyChange()
+        }
+    }
+
+    /// The docked terminal keyboard drops its own toolbar row for the glass bar.
+    var terminalKeyboardUsesGlassBar: Bool {
+        didSet {
+            guard !isReloading, terminalKeyboardUsesGlassBar != oldValue else { return }
+            SettingsStore.shared.set(Settings.KeyboardToolbar.glassBarWithTerminalKeyboard, terminalKeyboardUsesGlassBar)
             notifyChange()
         }
     }
@@ -348,6 +358,7 @@ class KeyboardToolbarManager {
         drawerToggleMode = SettingsStore.shared.get(Settings.KeyboardToolbar.drawerToggleMode)
         showsKeycaps = SettingsStore.shared.get(Settings.KeyboardToolbar.keycaps)
         toolbarStyle = SettingsStore.shared.get(Settings.KeyboardToolbar.style)
+        terminalKeyboardUsesGlassBar = SettingsStore.shared.get(Settings.KeyboardToolbar.glassBarWithTerminalKeyboard)
         glyphColoring = SettingsStore.shared.get(Settings.KeyboardToolbar.glyphColoring)
 
         // Check if device idiom changed (e.g. restored backup from different device)
@@ -399,6 +410,9 @@ class KeyboardToolbarManager {
         }
         if keys.contains(Settings.KeyboardToolbar.style.name) {
             toolbarStyle = SettingsStore.shared.get(Settings.KeyboardToolbar.style)
+        }
+        if keys.contains(Settings.KeyboardToolbar.glassBarWithTerminalKeyboard.name) {
+            terminalKeyboardUsesGlassBar = SettingsStore.shared.get(Settings.KeyboardToolbar.glassBarWithTerminalKeyboard)
         }
         if keys.contains(Settings.KeyboardToolbar.glyphColoring.name) {
             glyphColoring = SettingsStore.shared.get(Settings.KeyboardToolbar.glyphColoring)
@@ -478,8 +492,7 @@ class KeyboardToolbarManager {
     /// A display's minimum key width, in points. The low end of the range,
     /// or anything under it, leaves the width to the toolbar.
     func setMinimumKeyWidth(_ width: Double, for key: SettingKey<Double>) {
-        let range = KeyboardToolbarSize.minimumKeyWidthRange
-        let value = width > range.lowerBound ? min(width, range.upperBound) : 0
+        let value = KeyboardToolbarSize.normalizedMinimumKeyWidth(width)
         guard SettingsStore.shared.value(key) != value else { return }
         SettingsStore.shared.set(key, value)
         notifyChange()
@@ -663,17 +676,17 @@ class KeyboardToolbarManager {
 
     /// How many standard buttons fit in the main row before runtime additions.
     func mainRowCapacity(availableWidth: CGFloat, sizes: KeyboardSizes, minimumKeyWidth: Double = 0) -> Int {
-        let buttonWidth = max(sizes.button.normalWidth, CGFloat(minimumKeyWidth)) + sizes.toolbar.spacing
-        guard buttonWidth > 0 else { return 0 }
-        return max(1, Int((availableWidth + sizes.toolbar.spacing) / buttonWidth))
+        KeyboardToolbarOverflow.keysFitting(width: availableWidth,
+            keyWidth: max(sizes.button.normalWidth, CGFloat(minimumKeyWidth)), spacing: sizes.toolbar.spacing)
     }
 
     /// A context's main-row capacity: its minimum key width, less whatever
-    /// its pinned keys need back.
+    /// its pinned keys need back. `omitting` slots take no room.
     func mainRowCapacity(for context: ToolbarContext, availableWidth: CGFloat, reservedMainRowSlots: Int = 0,
-                         sizes: KeyboardSizes) -> Int {
+                         sizes: KeyboardSizes, omitting omitted: Set<KeySlot> = []) -> Int {
         let layout = self.layout(for: context)
         let pinned = validSlots((layout.pinnedLeading ?? []) + (layout.pinnedTrailing ?? []), in: layout)
+            .filter { !omitted.contains($0) }
         return KeyboardToolbarOverflow.capacity(
             usual: mainRowCapacity(availableWidth: availableWidth, sizes: sizes),
             widened: mainRowCapacity(availableWidth: availableWidth, sizes: sizes,
@@ -685,16 +698,20 @@ class KeyboardToolbarManager {
 
     /// Main row and drawers must share the same capacity and reservation. A
     /// displaced key leads the first drawer, ahead of its configured contents.
+    /// `omitting` slots are left out entirely, for a row that draws nothing for them.
     func effectiveLayout(for context: ToolbarContext, availableWidth: CGFloat, reservedMainRowSlots: Int = 0,
-                         sizes: KeyboardSizes) -> EffectiveToolbarLayout {
+                         sizes: KeyboardSizes, omitting omitted: Set<KeySlot> = []) -> EffectiveToolbarLayout {
         let layout = self.layout(for: context)
-        let leading = validSlots(layout.pinnedLeading ?? [], in: layout)
-        let trailing = validSlots(layout.pinnedTrailing ?? [], in: layout)
-        let main = validSlots(layout.mainRow, in: layout)
-        let drawers = layout.drawerRows.map { validSlots($0, in: layout) }
+        func slots(_ row: [KeySlot]) -> [KeySlot] {
+            validSlots(row, in: layout).filter { !omitted.contains($0) }
+        }
+        let leading = slots(layout.pinnedLeading ?? [])
+        let trailing = slots(layout.pinnedTrailing ?? [])
+        let main = slots(layout.mainRow)
+        let drawers = layout.drawerRows.map(slots)
         let keepsDrawerToggle = !layout.hiddenKeys.contains(.drawerToggle)
         let capacity = mainRowCapacity(for: context, availableWidth: availableWidth,
-                                       reservedMainRowSlots: reservedMainRowSlots, sizes: sizes)
+                                       reservedMainRowSlots: reservedMainRowSlots, sizes: sizes, omitting: omitted)
         if layout.mainRowScrolls, let scrolling = KeyboardToolbarOverflow.scrollingLayout(
             leading: leading, main: main, trailing: trailing, drawers: drawers, capacity: capacity,
             reservedSlots: reservedMainRowSlots, drawerToggle: .builtIn(.drawerToggle),

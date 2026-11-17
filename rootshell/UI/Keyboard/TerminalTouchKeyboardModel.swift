@@ -44,6 +44,24 @@ nonisolated enum KeyboardToolbarOverflow {
     /// always one a drag can start on, whatever the other does with drags.
     static let scrollingMiddleSlots = 2
 
+    /// Keys `keyWidth` wide, `spacing` apart, that a row `width` wide holds.
+    static func keysFitting(width: CGFloat, keyWidth: CGFloat, spacing: CGFloat) -> Int {
+        let step = keyWidth + spacing
+        guard step > 0 else { return 0 }
+        return max(1, Int((width + spacing) / step))
+    }
+
+    /// The narrowest row that draws `keys` keys at `keyWidth` and that
+    /// `keysFitting` counts in full at `countedKeyWidth`.
+    static func fittedWidth(keys: Int, keyWidth: CGFloat, countedKeyWidth: CGFloat, spacing: CGFloat) -> CGFloat {
+        guard keys > 0 else { return 0 }
+        let count = CGFloat(keys)
+        let drawn = count * keyWidth + (count - 1) * spacing
+        let counted = count * (countedKeyWidth + spacing) - spacing
+        // A hair over, so the count's floor never lands just short of the last key.
+        return max(drawn, counted) + 0.5
+    }
+
     /// `leading` and `trailing` are pinned: they take their slots first and
     /// `main` fills what is left. Pinned keys give way only once `main` is
     /// empty, from the end nearest the middle.
@@ -102,6 +120,36 @@ nonisolated enum KeyboardToolbarOverflow {
         let middleSlots = available - leading.count - trailing.count
         guard !middle.isEmpty, middleSlots >= min(scrollingMiddleSlots, middle.count) else { return nil }
         return (leading, middle, trailing, rows)
+    }
+}
+
+/// A toolbar row inside a remote screen's bar, with the bar's own buttons over
+/// its trailing end. Floating, the bar fits its keys; docked, or floating with
+/// too little room, keys and buttons share the width there is.
+nonisolated struct ToolbarHostBarGeometry: Equatable {
+    /// Keys the row draws.
+    var keyCount = 0
+    var edgePadding: CGFloat = 0
+    /// The row's width, edge padding in and the bar's buttons out, that keeps every key on it.
+    var fittedRowWidth: CGFloat = 0
+    /// A button's width while the bar fits its keys.
+    var slotWidth: CGFloat = 46
+    /// The narrowest a shared slot gets.
+    var minimumSlotWidth: CGFloat = 30
+
+    func slotWidth(availableWidth: CGFloat, buttons: Int, docked: Bool) -> CGFloat {
+        if !docked, fittedWidth(buttons: buttons) <= availableWidth { return slotWidth }
+        let slots = CGFloat(max(1, keyCount + buttons))
+        let shared = max(minimumSlotWidth, (availableWidth - edgePadding * 2) / slots)
+        return docked ? shared : min(slotWidth, shared)
+    }
+
+    func barWidth(availableWidth: CGFloat, buttons: Int, docked: Bool) -> CGFloat {
+        docked ? availableWidth : min(availableWidth, fittedWidth(buttons: buttons))
+    }
+
+    private func fittedWidth(buttons: Int) -> CGFloat {
+        fittedRowWidth + slotWidth * CGFloat(buttons)
     }
 }
 
@@ -862,11 +910,11 @@ nonisolated enum TerminalTouchKeyboardModel {
 
     /// Paired neutral colors remain legible through keyboard-window trait changes.
     /// Both cap and ink must resolve from the same appearance, including Shift.
-    static func keyColors(dark: Bool, character: Bool, pressed: Bool, selected: Bool) -> (background: Double, ink: Double) {
+    static func keyColors(dark: Bool, pressed: Bool, selected: Bool) -> (background: Double, ink: Double) {
         if selected { return dark ? (0.96, 0.08) : (0.12, 1.0) }
-        // Native dark keyboards use the same muted fill for letters and utilities.
+        // Native keyboards use one fill for letters and utilities in both appearances.
         if dark { return (pressed ? 0.36 : 0.27, 1.0) }
-        return (pressed ? 0.75 : (character ? 1.0 : 0.79), 0.08)
+        return (pressed ? 0.75 : 1.0, 0.08)
     }
 
     /// A detached card moves the Apple Keyboard key to its footer, as Apple's
