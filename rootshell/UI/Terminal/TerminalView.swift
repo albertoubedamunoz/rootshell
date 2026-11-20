@@ -1285,6 +1285,8 @@ extension Ghostty {
         /// (iOS/iPadOS/Catalyst/visionOS) — unlike the dimension overlay, the
         /// brightness HUD is reachable on Catalyst via the hardware keybind.
         var brightnessHUDHost: UIHostingController<BrightnessBoostHUDView>?
+        /// Follows the pane's visible height so the HUD stays above the toolbar and keyboard.
+        var brightnessHUDBottomConstraint: NSLayoutConstraint?
         /// Auto-hide timer for the brightness HUD.
         var brightnessHUDHideTask: Task<Void, Never>?
 
@@ -3887,6 +3889,7 @@ extension Ghostty {
         
         override func layoutSubviews() {
             super.layoutSubviews()
+            updateBrightnessHUDPlacement()
 
             // On Mac Catalyst, batch the sublayer-frame change with the
             // surface-size update inside one CATransaction so Core Animation
@@ -4536,7 +4539,7 @@ extension Ghostty {
                 if activeKeyboardModifiers.contains(.control), text.lowercased() == "c",
                    let localSession = session as? LocalShellSession,
                    !localSession.hasActiveEmbeddedSession {
-                    localSession.interrupt()
+                    interruptLocalShell(localSession)
                     keyboardAccessoryController?.clearOneShotModifiers()
                     return
                 }
@@ -4630,7 +4633,7 @@ extension Ghostty {
             #if !targetEnvironment(macCatalyst)
             if finalText == "\u{03}", let localSession = session as? LocalShellSession,
                !localSession.hasActiveEmbeddedSession {
-                localSession.interrupt()
+                interruptLocalShell(localSession)
                 return
             }
             #endif
@@ -6027,7 +6030,7 @@ extension Ghostty.TerminalView {
         text: String? = nil,
         unshiftedCodepoint: UInt32 = 0
     ) -> Bool {
-        noteUserInput()
+        noteUserInput(endsOneShotKeyboard: action != .release)
         endDictationSession()
         invalidateWritingAssistance()
         // Covered herdr gateway: Ghostty would encode straight into the hidden
@@ -6150,7 +6153,7 @@ extension Ghostty.TerminalView: KeyboardButtonDelegate {
         if modifiers.contains(.control), key.count == 1, key.lowercased() == "c",
            let localSession = session as? LocalShellSession,
            !localSession.hasActiveEmbeddedSession {
-            localSession.interrupt()
+            interruptLocalShell(localSession)
             return
         }
         #endif

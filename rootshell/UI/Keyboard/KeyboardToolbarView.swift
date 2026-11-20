@@ -581,6 +581,9 @@ class KeyboardToolbarView: UIView {
     /// Callback when the dismiss button is long-pressed to pin the keyboard hidden
     var onPinHiddenRequested: (() -> Void)?
 
+    /// A one-shot custom key finished sending and wants the keyboard for one input.
+    var onOneShotKeyboardRequested: (() -> Void)?
+
     /// Callback when tab switcher button is tapped
     var onTabSwitcherRequested: (() -> Void)?
 
@@ -738,6 +741,38 @@ class KeyboardToolbarView: UIView {
         !leadingStackView.arrangedSubviews.isEmpty || !trailingStackView.arrangedSubviews.isEmpty
     }
 
+    private final class KeySlotBox {
+        let slot: KeySlot
+        init(_ slot: KeySlot) { self.slot = slot }
+    }
+    /// The slot each key view was built for.
+    private let keySlots = NSMapTable<UIView, KeySlotBox>.weakToStrongObjects()
+    /// Main-row keys this width sends to the drawer.
+    private(set) var overflowedSlots: Set<KeySlot> = []
+
+    /// The keys in the main row and the open drawers, for a settings preview to hit-test.
+    func previewKeys() -> [ToolbarPreviewKey] {
+        var rows: [(stack: UIStackView, scrollView: UIScrollView?, drawer: Int?)] = [
+            (leadingStackView, nil, nil), (mainRowStackView, nil, nil),
+            (middleScrollRow.stackView, middleScrollRow.scrollView, nil), (trailingStackView, nil, nil),
+        ]
+        // The main row in the order it draws, then each drawer.
+        var drawers: [(stack: UIStackView, scrollView: UIScrollView?, drawer: Int?)] = []
+        for (id, row) in cachedDrawerRows where drawerRowViews.contains(where: { $0 === row }) {
+            if case .extra(let index) = id { drawers.append((row.stackView, row.scrollView, index)) }
+        }
+        rows += drawers.sorted { ($0.drawer ?? 0) < ($1.drawer ?? 0) }
+        var keys: [ToolbarPreviewKey] = []
+        for row in rows {
+            for view in row.stack.arrangedSubviews {
+                guard let slot = keySlots.object(forKey: view)?.slot else { continue }
+                keys.append(ToolbarPreviewKey(slot: slot, frame: view.convert(view.bounds, to: self),
+                                              scrollView: row.scrollView, drawer: row.drawer))
+            }
+        }
+        return keys
+    }
+
     // MARK: - Initialization
 
     init(sizes: KeyboardSizes) {
@@ -818,7 +853,7 @@ class KeyboardToolbarView: UIView {
     var previewDrawers: PreviewDrawers?
 
     /// Slots a host's bar draws nothing for: it has its own keyboard button.
-    private static let hostHiddenSlots: Set<KeySlot> = [.builtIn(.dismiss)]
+    static let hostHiddenSlots: Set<KeySlot> = [.builtIn(.dismiss)]
 
     /// Slots this row draws nothing for, which take no room on it either.
     private var omittedSlots: Set<KeySlot> { usesHostChrome ? Self.hostHiddenSlots : [] }
@@ -874,10 +909,22 @@ class KeyboardToolbarView: UIView {
 
     /// The main row's width for keys, once its padding, the host's buttons
     /// and the gaps beside pinned sections are taken out.
-    private func mainRowKeysWidth(width: CGFloat, hostTrailingReserve reserve: CGFloat) -> CGFloat {
+    private func mainRowKeysWidth(width: CGFloat, hostTrailingReserve reserve: CGFloat,
+                                  pinnedSections: Int? = nil) -> CGFloat {
         let chromeInsets = currentChromeHorizontalInsets()
         return width - currentEdgePadding() * 2 - chromeInsets.left - chromeInsets.right - reserve
-            - CGFloat(configuredPinnedSections) * sectionGap
+            - CGFloat(pinnedSections ?? configuredPinnedSections) * sectionGap
+    }
+
+    /// The main row's capacity were these keys the pinned ones, for a
+    /// settings preview to try a layout. Pinned keys change what the row holds.
+    func previewCapacity(leading: [KeySlot], trailing: [KeySlot]) -> Int {
+        let sections = [leading, trailing].filter { !$0.isEmpty }.count
+        return KeyboardToolbarManager.shared.mainRowCapacity(
+            for: context,
+            availableWidth: mainRowKeysWidth(width: bounds.width, hostTrailingReserve: hostTrailingReserve,
+                                             pinnedSections: sections),
+            reservedMainRowSlots: reservedMainRowSlots, sizes: sizes, pinned: leading + trailing)
     }
 
     /// The main row's height at the sizes this toolbar was last given.
@@ -1219,6 +1266,10 @@ class KeyboardToolbarView: UIView {
             reservedMainRowSlots: reservedMainRowSlots, sizes: sizes, omitting: omittedSlots)
         lastBuiltCapacity = mainRowCapacity(width: width, hostTrailingReserve: hostTrailingReserve)
         effectiveDrawerRows = layout.drawers
+        let configured = manager.layout(for: context)
+        let configuredMain = (configured.pinnedLeading ?? []) + configured.mainRow + (configured.pinnedTrailing ?? [])
+        overflowedSlots = Set(manager.validSlots(configuredMain, in: configured))
+            .subtracting(layout.main).subtracting(omittedSlots)
         // A layout rebuild can change a row's contents. Ordinary drawer count
         // changes reuse these views and their horizontal scroll positions.
         let cachedModifiers = Set(cachedDrawerRows.values.flatMap {
@@ -1457,6 +1508,7 @@ class KeyboardToolbarView: UIView {
         case .custom(let uuid):
             view = createCustomKeyButton(uuid: uuid)
         }
+        if let view { keySlots.setObject(KeySlotBox(slot), forKey: view) }
         let color = KeyboardToolbarManager.shared.glyphColor(for: slot)
         (view as? KeyboardButton)?.glyphColor = color
         #if !os(visionOS)
@@ -2503,12 +2555,17 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
             if let uuid = UUID(uuidString: uuidString),
                let customKey = KeyboardToolbarManager.shared.customKey(for: uuid) {
 
+                // A one-shot key opens the keyboard only once its own keys
+                // are out, so they never count as the one input.
+                let opensKeyboard = customKey.showsKeyboardOnce ? onOneShotKeyboardRequested : nil
+
                 // Simple single-character custom keys (no baked-in modifiers)
                 // go through the normal key path so toolbar modifiers apply.
                 if let plainChar = customKey.plainCharacter {
                     let combinedModifiers = combinedModifiersIncludingSystemShift(modifiers)
                     self.delegate?.keyPressed(String(plainChar), modifiers: combinedModifiers)
                     clearOneShotModifiers()
+                    opensKeyboard?()
                     return
                 }
 
@@ -2516,10 +2573,11 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
                 if let input = customKey.plainSpecialKeyInput, !combinedModifiers.isEmpty {
                     self.delegate?.keyPressed(input, modifiers: combinedModifiers)
                     clearOneShotModifiers()
+                    opensKeyboard?()
                     return
                 }
 
-                sendCustomKeySequence(customKey.sequence)
+                sendCustomKeySequence(customKey.sequence, completion: opensKeyboard)
             }
             clearOneShotModifiers()
             return
@@ -2572,8 +2630,8 @@ extension KeyboardToolbarView: KeyboardButtonDelegate {
     /// Send a custom key sequence to the terminal. Forwards to the shared
     /// `KeyboardButtonDelegate.sendSequenceSteps` so the toolbar and the
     /// swipe-gesture system go through the same per-step + post-ESC delay logic.
-    private func sendCustomKeySequence(_ steps: [SequenceStep]) {
-        delegate?.sendSequenceSteps(steps)
+    private func sendCustomKeySequence(_ steps: [SequenceStep], completion: (() -> Void)? = nil) {
+        delegate?.sendSequenceSteps(steps, completion: completion)
     }
 }
 
