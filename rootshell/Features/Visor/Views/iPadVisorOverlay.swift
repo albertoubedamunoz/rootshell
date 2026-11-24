@@ -43,7 +43,7 @@ final class iPadVisorController {
              .previousTab, .nextTab, .selectTab, .previousGroup, .nextGroup,
              .showTabSwitcher, .toggleTabExpose, .toggleTabBar, .toggleGroupMode,
              .browseHosts, .browseProfiles, .toggleAIAgent, .toggleVoiceAgent, .toggleDictation,
-             .toggleThemePicker, .toggleClipboardManager, .toggleIPLookup, .toggleHTTPCapture, .toggleAgentInbox, .toggleFullScreen,
+             .toggleThemePicker, .toggleClipboardManager, .toggleIPLookup, .toggleHTTPCapture, .toggleAgentInbox, .toggleGitDiff, .toggleFullScreen,
              .toggleBackgroundEffect, .toggleTitleBar, .toggleTransparency, .toggleAutoRedact:
             owner.hide()
             return true
@@ -69,6 +69,7 @@ final class iPadVisorController {
     func install(_ terminal: Ghostty.TerminalView) -> Ghostty.TerminalScrollView {
         self.terminal = terminal
         let scrollView = Ghostty.TerminalScrollView(terminalView: terminal)
+        scrollView.drawsOverBackdrop = false
         self.scrollView = scrollView
         return scrollView
     }

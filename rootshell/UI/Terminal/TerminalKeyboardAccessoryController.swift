@@ -1445,6 +1445,8 @@ final class TerminalKeyboardAccessoryController: NSObject {
         }
         return onTerminalKeyboard ? .terminalKeyboard : .systemKeyboard
         #else
+        // A Mac's only toolbar is a remote screen's bar.
+        if let floating = host?.keyboardGlassBarIsFloating { return .glassBar(floating: floating) }
         return .systemKeyboard
         #endif
     }
@@ -1609,6 +1611,11 @@ final class TerminalKeyboardAccessoryController: NSObject {
         keyboardAccessory?.onHTTPCaptureRequested = { [weak host] in
             guard let host else { return }
             NotificationCenter.default.post(name: .toggleHTTPCapture, object: host.keyboardHostView)
+        }
+
+        keyboardAccessory?.onGitDiffRequested = { [weak host] in
+            guard let host else { return }
+            NotificationCenter.default.post(name: .toggleGitDiff, object: host.keyboardHostView)
         }
 
         keyboardAccessory?.onLayoutInvalidated = { [weak self] in

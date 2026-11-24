@@ -57971,7 +57971,7 @@
       }
     },
     "Add" : {
-      "comment" : "Add button",
+      "comment" : "Add button\nExternal SSH agents add discovered agent button\nLocal SSH agent audit action",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -81295,7 +81295,7 @@
       }
     },
     "Always" : {
-      "comment" : "Always On Display duration: never auto-lock\nCert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
+      "comment" : "Cert validity: no start bound\nHole-punch mode: always perform\nLocation Diary authorization status\nPrediction mode: always show predictions\nShader animation: always\nTab hover preview activation",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -163937,7 +163937,7 @@
       }
     },
     "Client" : {
-      "comment" : "HTTP capture field",
+      "comment" : "HTTP capture field\nLocal SSH agent client rule identity section",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -164705,6 +164705,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用戶端密鑰（選填）"
+          }
+        }
+      }
+    },
+    "Client Secret (required for Google)" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سر العميل (مطلوب لـ Google)"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret de client (obligatori per a Google)"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tajný klíč klienta (povinný pro Google)"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klienthemmelighed (påkrævet for Google)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client-Secret (für Google erforderlich)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secreto de cliente (obligatorio para Google)"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asiakassalaisuus (pakollinen Googlelle)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret client (obligatoire pour Google)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סוד לקוח (חובה עבור Google)"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ügyféltitok (Google esetén kötelező)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret client (obbligatorio per Google)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クライアントシークレット（Google では必須）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클라이언트 비밀 (Google의 경우 필수)"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klienthemmelighet (obligatorisk for Google)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientgeheim (vereist voor Google)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sekret klienta (wymagany dla Google)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segredo do Cliente (obrigatório para o Google)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segredo do Cliente (obrigatório para o Google)"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret client (obligatoriu pentru Google)"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skrivnost odjemalca (zahtevano za Google)"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klienthemlighet (krävs för Google)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Секрет клієнта (обовʼязково для Google)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mã Bí Mật Máy Khách (bắt buộc với Google)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "客户端密钥（Google 必填）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用戶端密鑰（Google 必填）"
           }
         }
       }
@@ -202091,7 +202245,7 @@
       }
     },
     "Copied" : {
-      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nShare link: copied to clipboard",
+      "comment" : "Clipboard entry source: explicit copy\nCopy button state: copied\nLocal SSH agent export copied button\nShare link: copied to clipboard",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -249247,7 +249401,7 @@
       }
     },
     "Denied" : {
-      "comment" : "Location Diary authorization status",
+      "comment" : "Local SSH agent audit outcome\nLocation Diary authorization status",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -318804,7 +318958,7 @@
       }
     },
     "Failed" : {
-      "comment" : "Tailscale SSH egress state",
+      "comment" : "Local SSH agent audit outcome\nTailscale SSH egress state",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -350351,6 +350505,7 @@
       }
     },
     "Full Screen expands this Screen Sharing pane after the connection succeeds." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -350500,6 +350655,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「全螢幕」會在連線成功後展開此螢幕共享窗格。"
+          }
+        }
+      }
+    },
+    "Full Screen expands this Screen Sharing pane after the connection succeeds. Keyboard Toolbar controls the bar of keys shown over the remote screen." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يوسّع «ملء الشاشة» جزء مشاركة الشاشة هذا بعد نجاح الاتصال. ويتحكم «شريط أدوات لوحة المفاتيح» في شريط المفاتيح الظاهر فوق الشاشة البعيدة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla completa amplia aquesta subfinestra de Compartir pantalla quan la connexió s'estableix correctament. Barra d'eines del teclat controla la barra de tecles que es mostra sobre la pantalla remota."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celá obrazovka roztáhne tento panel sdílení obrazovky po úspěšném připojení. Panel nástrojů klávesnice ovládá lištu kláves zobrazenou nad vzdálenou obrazovkou."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuld skærm udvider denne skærmdelingsrude, når forbindelsen er oprettet. Tastaturværktøjslinje styrer bjælken med taster, der vises over fjernskærmen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vollbild vergrößert diesen Bildschirmfreigabe-Bereich, nachdem die Verbindung hergestellt wurde. Tastatur-Symbolleiste steuert die Tastenleiste, die über dem entfernten Bildschirm angezeigt wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Pantalla completa» amplía este panel de Compartir pantalla una vez establecida la conexión. «Barra de herramientas del teclado» controla la barra de teclas que se muestra sobre la pantalla remota."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koko näyttö laajentaa tämän näytön jakamisen ruudun, kun yhteys on muodostettu. Näppäimistön työkalupalkki hallitsee etänäytön päällä näkyvää näppäinpalkkia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plein écran agrandit ce volet Partage d'écran une fois la connexion établie. Barre d'outils du clavier contrôle la barre de touches affichée au-dessus de l'écran distant."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מסך מלא מרחיב את חלונית שיתוף המסך הזו לאחר שהחיבור מצליח. סרגל הכלים של המקלדת שולט בסרגל המקשים שמוצג מעל המסך המרוחק."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Teljes képernyő a kapcsolat létrejötte után kiterjeszti ezt a képernyőmegosztási panelt. A Billentyűzet eszköztár a távoli képernyő fölött megjelenő billentyűsávot vezérli."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schermo intero espande questo riquadro di condivisione schermo dopo che la connessione è riuscita. Barra strumenti tastiera controlla la barra di tasti mostrata sopra lo schermo remoto."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「フルスクリーン」は接続成功後にこの画面共有ペインを拡大します。「キーボードツールバー」はリモート画面の上に表示されるキーのバーを制御します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체 화면은 연결에 성공한 후 이 화면 공유 창을 확대합니다. 키보드 도구 모음은 원격 화면 위에 표시되는 키 막대를 제어합니다."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fullskjerm utvider dette skjermdelingspanelet etter at tilkoblingen er opprettet. Tastaturverktøylinje styrer tastelinjen som vises over den eksterne skjermen."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volledig scherm vergroot dit Schermdelen-deelvenster nadat de verbinding tot stand is gekomen. Toetsenbordwerkbalk bepaalt de toetsenbalk die boven het externe scherm wordt getoond."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pełny ekran rozszerza ten panel udostępniania ekranu po udanym połączeniu. Pasek narzędzi klawiatury steruje paskiem klawiszy wyświetlanym nad zdalnym ekranem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Tela Cheia expande este painel de Compartilhamento de Tela após a conexão ser estabelecida. A Barra de Ferramentas do Teclado controla a barra de teclas exibida sobre a tela remota."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ecrã Inteiro expande este painel de Partilha de Ecrã após a ligação ser estabelecida. Barra de Ferramentas do Teclado controla a barra de teclas apresentada sobre o ecrã remoto."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Ecran complet” extinde acest panou de partajare ecran după reușita conexiunii. „Bara de instrumente a tastaturii” controlează bara de taste afișată deasupra ecranului la distanță."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celoten zaslon razširi to podokno skupne rabe zaslona po uspešni povezavi. Orodna vrstica tipkovnice upravlja vrstico tipk, prikazano nad oddaljenim zaslonom."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helskärm expanderar den här skärmdelningsrutan när anslutningen har lyckats. Tangentbordets verktygsfält styr fältet med tangenter som visas över fjärrskärmen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Повноекранний режим» розгортає цю область спільного доступу до екрана після успішного з'єднання. «Панель інструментів клавіатури» керує панеллю клавіш, що відображається над віддаленим екраном."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toàn màn hình sẽ mở rộng khung Chia sẻ màn hình này sau khi kết nối thành công. Thanh công cụ bàn phím kiểm soát thanh phím hiển thị phía trên màn hình từ xa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“全屏”会在连接成功后展开此屏幕共享窗格。“键盘工具栏”控制显示在远程屏幕上方的按键栏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「全螢幕」會在連線成功後展開此螢幕共享窗格。「鍵盤工具列」用於控制顯示在遠端螢幕上方的按鍵列。"
           }
         }
       }
@@ -392039,7 +392348,7 @@
       }
     },
     "Identity" : {
-      "comment" : "OpenPubkey field: signed-in account",
+      "comment" : "Local SSH agent client rule identity key label\nOpenPubkey field: signed-in account",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -394682,7 +394991,7 @@
       }
     },
     "Import" : {
-      "comment" : "Import button",
+      "comment" : "External agent identity import button\nImport button",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -448291,7 +448600,7 @@
       }
     },
     "Last Used" : {
-      "comment" : "VPN quick connect: caption above the last VPN's name",
+      "comment" : "Local SSH agent client rule last used label\nVPN quick connect: caption above the last VPN's name",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -466824,7 +467133,7 @@
       }
     },
     "Local SSH Agent" : {
-      "comment" : "Setting title",
+      "comment" : "Local SSH agent settings title\nSetting title\nSettings row: local SSH agent",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -506066,7 +506375,7 @@
       }
     },
     "Name" : {
-      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nStorage metadata field name placeholder\nStorage provider field",
+      "comment" : "File manager column\nFile manager name placeholder\nHTTP capture CA field\nHTTP capture session name field\nLocal SSH agent client rule identity name label\nStorage metadata field name placeholder\nStorage provider field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -539263,7 +539572,7 @@
       }
     },
     "None" : {
-      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nBookmarked locations: none saved\nCursor effect: no effect\nHTTP capture: no host decrypted\nKVM pre-disconnect action\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nScreen Sharing pre-disconnect action\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
+      "comment" : "Auth method: no authentication\nBackground effect: no effect active\nBell sound: completely silent\nCursor effect: no effect\nHTTP capture: no host decrypted\nKVM pre-disconnect action\nKey auth requirement: none\nKubernetes auth method: no authentication\nNotification sound: silent\nProfile folder: no folder selected\nQuick setup pair: disable both swipes\nScreen Sharing pre-disconnect action\nSettings status: none configured\nSplit border style: no border\nTailscale SSH egress: none\nTailscale exit node: none\nVNC jump selection\nVNC security preference\nVPN excluded routes: none configured",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -550242,7 +550551,7 @@
       }
     },
     "Off" : {
-      "comment" : "Agent notification policy: never notify\nAlways On Display duration: disabled\nLive Activity agent messages option\nMod-tap: no active rules\nSSHFP host key verification mode\nScreen Sharing clipboard sync default\nScreen Sharing three-finger swipe action\nSetting value display\nSettings VPN row: nothing running\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
+      "comment" : "Agent notification policy: never notify\nMod-tap: no active rules\nSSHFP host key verification mode\nScreen Sharing clipboard sync default\nScreen Sharing three-finger swipe action\nSetting value display\nSettings VPN row: nothing running\nSettings status: disabled\nTailscale SSH egress state\nTailscale state\nTask notification policy: never notify\nToggle state: disabled\nTwo-finger long press: gesture disabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -551169,7 +551478,7 @@
       }
     },
     "On" : {
-      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
+      "comment" : "Setting value display\nSettings VPN row: in-app Tailscale waits to start\nSettings status: enabled\nTailscale VPN is active\nToggle state: enabled\nVNC keyboard toolbar preference",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -581759,7 +582068,7 @@
       }
     },
     "Path" : {
-      "comment" : "Storage addressing style: bucket in the URL path",
+      "comment" : "Local SSH agent client rule identity path label\nStorage addressing style: bucket in the URL path",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -642764,7 +643073,7 @@
       }
     },
     "Remove" : {
-      "comment" : "Storage metadata: remove field",
+      "comment" : "Local SSH agent audit action\nStorage metadata: remove field",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -734062,6 +734371,314 @@
         }
       }
     },
+    "Show Keyboard Toolbar" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار شريط أدوات لوحة المفاتيح"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra la barra d'eines del teclat"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazit panel nástrojů klávesnice"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis tastaturværktøjslinje"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tastatur-Symbolleiste einblenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar barra de herramientas del teclado"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä näppäimistön työkalupalkki"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la barre d'outils du clavier"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצגת סרגל הכלים של המקלדת"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Billentyűzet eszköztár megjelenítése"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra barra strumenti tastiera"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボードツールバーを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드 도구 모음 보기"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis tastaturverktøylinje"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toetsenbordwerkbalk tonen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż pasek narzędzi klawiatury"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Barra de Ferramentas do Teclado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar barra de ferramentas do teclado"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afișează bara de instrumente a tastaturii"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaži orodno vrstico tipkovnice"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa tangentbordets verktygsfält"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показати панель інструментів клавіатури"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện thanh công cụ bàn phím"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示键盘工具栏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示鍵盤工具列"
+          }
+        }
+      }
+    },
+    "Show Keyboard Toolbar adds a bar of keys to Screen Sharing and KVM sessions whose connection follows the app setting. Change it for the current session from the Screen Sharing menu. Floating Toolbar puts the bar in glass over the remote screen, where you can drag and fold it away; turn it off to dock the bar along the bottom. Click and hold the bar's chevron to switch the current session." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يضيف «إظهار شريط أدوات لوحة المفاتيح» شريط مفاتيح إلى جلسات مشاركة الشاشة وKVM التي يتبع اتصالها إعداد التطبيق. غيّره للجلسة الحالية من قائمة مشاركة الشاشة. يضع «شريط الأدوات العائم» الشريط في زجاج فوق الشاشة البعيدة، حيث يمكنك سحبه وطيّه؛ أوقفه لإرساء الشريط على طول الحافة السفلية. انقر سهم الشريط مع الاستمرار لتبديل الجلسة الحالية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra la barra d'eines del teclat afegeix una barra de tecles a les sessions de Compartir pantalla i KVM la connexió de les quals segueix l'ajust de l'app. Canvia-ho per a la sessió actual des del menú de Compartir pantalla. Barra d'eines flotant posa la barra en vidre sobre la pantalla remota, on la pots arrossegar i replegar; desactiva-ho per acoblar la barra a la part inferior. Fes clic i mantén premuda la fletxa de la barra per canviar la sessió actual."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobrazit panel nástrojů klávesnice přidá lištu kláves do relací sdílení obrazovky a KVM, jejichž připojení se řídí nastavením aplikace. Pro aktuální relaci to změníte v nabídce Sdílení obrazovky. Plovoucí panel nástrojů umístí lištu do skla nad vzdálenou obrazovkou, kde ji můžete přetáhnout a sbalit; vypnutím lištu ukotvíte podél spodního okraje. Aktuální relaci přepnete kliknutím na šipku na liště a jejím podržením."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis tastaturværktøjslinje tilføjer en bjælke med taster til Skærmdeling- og KVM-sessioner, hvis forbindelse følger appens indstilling. Skift den for den aktuelle session i menuen Skærmdeling. Flydende værktøjslinje placerer bjælken i glas over fjernskærmen, hvor du kan trække og folde den væk; slå den fra for at fastgøre bjælken langs bunden. Klik og hold på bjælkens pil for at skifte den aktuelle session."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tastatur-Symbolleiste einblenden fügt Bildschirmfreigabe- und KVM-Sitzungen, deren Verbindung der App-Einstellung folgt, eine Tastenleiste hinzu. Für die aktuelle Sitzung ändern Sie dies im Bildschirmfreigabe-Menü. Schwebende Symbolleiste zeigt die Leiste in Glas über dem entfernten Bildschirm, wo Sie sie verschieben und einklappen können; deaktivieren Sie die Option, um die Leiste am unteren Rand anzudocken. Klicken und halten Sie den Pfeil der Leiste, um die aktuelle Sitzung umzuschalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Mostrar barra de herramientas del teclado» añade una barra de teclas a las sesiones de Compartir pantalla y KVM cuya conexión sigue el ajuste de la app. Cámbialo para la sesión actual desde el menú Compartir pantalla. «Barra de herramientas flotante» coloca la barra en cristal sobre la pantalla remota, donde puedes arrastrarla y plegarla; desactívalo para acoplar la barra en la parte inferior. Haz clic y mantén pulsada la flecha de la barra para cambiar la sesión actual."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Näytä näppäimistön työkalupalkki lisää näppäinpalkin näytön jakamisen ja KVM:n istuntoihin, joiden yhteys noudattaa sovelluksen asetusta. Muuta sitä nykyiselle istunnolle näytön jakamisen valikosta. Kelluva työkalupalkki sijoittaa palkin lasiin etänäytön päälle, jossa voit vetää sitä ja taittaa sen piiloon; laita tämä pois päältä, niin palkki kiinnitetään alareunaan. Vaihda nykyistä istuntoa klikkaamalla palkin nuolipainiketta ja pitämällä sitä painettuna."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la barre d'outils du clavier ajoute une barre de touches aux sessions Partage d'écran et KVM dont la connexion suit le réglage de l'app. Modifiez-le pour la session en cours depuis le menu Partage d'écran. Barre d'outils flottante place la barre en verre au-dessus de l'écran distant, où vous pouvez la déplacer et la replier ; désactivez cette option pour ancrer la barre en bas. Cliquez longuement sur le chevron de la barre pour changer la session en cours."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הצגת סרגל הכלים של המקלדת מוסיפה סרגל מקשים להפעלות שיתוף מסך ו-KVM שהחיבור שלהן פועל לפי הגדרת האפליקציה. ניתן לשנות זאת להפעלה הנוכחית מתפריט שיתוף המסך. סרגל כלים צף מציב את הסרגל בזכוכית מעל המסך המרוחק, שם אפשר לגרור ולקפל אותו הצידה; כבה כדי לעגן את הסרגל לאורך החלק התחתון. לחץ והחזק את החץ של הסרגל כדי להחליף בהפעלה הנוכחית."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Billentyűzet eszköztár megjelenítése egy billentyűsávot ad azokhoz a Képernyőmegosztás- és KVM-munkamenetekhez, amelyek kapcsolata az alkalmazás beállítását követi. Az aktuális munkamenetben a Képernyőmegosztás menüben módosíthatja. A Lebegő eszköztár üvegben jeleníti meg a sávot a távoli képernyő fölött, ahol elhúzhatja és összecsukhatja; kapcsolja ki, ha a sávot az alsó szélhez szeretné dokkolni. Az aktuális munkamenetben való váltáshoz kattintson a sáv nyílgombjára, és tartsa lenyomva."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra barra strumenti tastiera aggiunge una barra di tasti alle sessioni di Condivisione schermo e KVM la cui connessione segue l'impostazione dell'app. Puoi cambiarla per la sessione corrente dal menu Condivisione schermo. Barra strumenti mobile mette la barra in vetro sopra lo schermo remoto, dove puoi trascinarla e ripiegarla; disattiva l'opzione per ancorare la barra lungo il bordo inferiore. Fai clic e tieni premuta la freccia della barra per cambiare la sessione corrente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「キーボードツールバーを表示」は、接続がアプリ設定に従う画面共有およびKVMセッションにキーのバーを追加します。現在のセッションでは画面共有メニューから変更できます。「フローティングツールバー」はバーをリモート画面の上のガラスに表示し、ドラッグしたり折りたたんだりできます。オフにすると、バーは下端にドッキングされます。現在のセッションで切り替えるには、バーのシェブロンをクリックしたままにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드 도구 모음 보기는 연결이 앱 설정을 따르는 화면 공유 및 KVM 세션에 키 막대를 추가합니다. 현재 세션에서는 화면 공유 메뉴에서 변경할 수 있습니다. 플로팅 도구 모음은 원격 화면 위의 글래스에 막대를 표시하며, 막대를 드래그하거나 접어 둘 수 있습니다. 끄면 막대가 하단에 고정됩니다. 현재 세션에서 전환하려면 막대의 화살표 버튼을 클릭한 채로 유지하십시오."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vis tastaturverktøylinje legger til en tastelinje i Skjermdeling- og KVM-økter der tilkoblingen følger appinnstillingen. Endre den for gjeldende økt fra Skjermdeling-menyen. Flytende verktøylinje legger linjen i glass over den eksterne skjermen, der du kan dra og felle den sammen; slå av for å feste linjen langs bunnen. Klikk og hold på linjens vinkelpil for å bytte i den gjeldende økten."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toetsenbordwerkbalk tonen voegt een toetsenbalk toe aan Schermdelen- en KVM-sessies waarvan de verbinding de app-instelling volgt. Wijzig dit voor de huidige sessie via het Schermdelen-menu. Zwevende werkbalk plaatst de balk in glas boven het externe scherm, waar je hem kunt slepen en wegvouwen; schakel dit uit om de balk langs de onderkant vast te koppelen. Klik en houd de chevron van de balk ingedrukt om de huidige sessie om te schakelen."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż pasek narzędzi klawiatury dodaje pasek klawiszy do sesji udostępniania ekranu i KVM, których połączenie korzysta z ustawienia aplikacji. Dla bieżącej sesji zmień to w menu udostępniania ekranu. Pływający pasek narzędzi umieszcza pasek na szkle nad zdalnym ekranem, gdzie możesz go przeciągać i zwijać; wyłącz, aby zadokować pasek wzdłuż dolnej krawędzi. Aby przełączyć bieżącą sesję, kliknij i przytrzymaj strzałkę paska."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A opção Mostrar Barra de Ferramentas do Teclado adiciona uma barra de teclas às sessões de Compartilhamento de Tela e KVM cuja conexão segue o ajuste do app. Altere-a para a sessão atual no menu Compartilhamento de Tela. A Barra de Ferramentas Flutuante coloca a barra em vidro sobre a tela remota, onde você pode arrastá-la e recolhê-la; desative para encaixar a barra na parte inferior. Clique e segure a seta da barra para alternar a sessão atual."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar barra de ferramentas do teclado adiciona uma barra de teclas às sessões de Partilha de Ecrã e KVM cuja ligação segue a definição da app. Altere-a para a sessão atual no menu Partilha de Ecrã. Barra de Ferramentas Flutuante coloca a barra em vidro sobre o ecrã remoto, onde a pode arrastar e recolher; desative para encaixar a barra ao longo da parte inferior. Clique e mantenha premida a seta da barra para alternar a sessão atual."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Afișează bara de instrumente a tastaturii” adaugă o bară de taste sesiunilor de partajare ecran și KVM a căror conexiune urmează setarea aplicației. Modific-o pentru sesiunea curentă din meniul de partajare ecran. „Bară de instrumente flotantă” plasează bara în sticlă deasupra ecranului la distanță, unde o poți trage și restrânge; dezactiveaz-o pentru a andoca bara de-a lungul marginii de jos. Fă clic și ține apăsată săgeata barei pentru a comuta sesiunea curentă."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaži orodno vrstico tipkovnice doda vrstico tipk sejam skupne rabe zaslona in KVM, katerih povezava sledi nastavitvi aplikacije. Za trenutno sejo jo spremenite v meniju skupne rabe zaslona. Plavajoča orodna vrstica postavi vrstico v steklo nad oddaljenim zaslonom, kjer jo lahko povlečete in strnete; izklopite, da vrstico zasidrate ob spodnjem robu. Za preklop trenutne seje kliknite puščico vrstice in jo zadržite."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visa tangentbordets verktygsfält lägger till ett fält med tangenter i Skärmdelning- och KVM-sessioner vars anslutning följer appinställningen. Ändra det för den aktuella sessionen i menyn Skärmdelning. Flytande verktygsfält lägger fältet i glas över fjärrskärmen, där du kan dra och fälla undan det. Stäng av för att docka fältet längs nederkanten. Klicka och håll ned fältets pilknapp för att växla den aktuella sessionen."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Показати панель інструментів клавіатури» додає панель клавіш до сеансів спільного доступу до екрана й KVM, з'єднання яких використовує налаштування застосунку. Для поточного сеансу це можна змінити в меню спільного доступу до екрана. «Плаваюча панель інструментів» розміщує панель на склі над віддаленим екраном, де її можна перетягувати й згортати; вимкніть, щоб закріпити панель уздовж нижнього краю. Клацніть і утримуйте шеврон панелі, щоб перемкнути поточний сеанс."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện thanh công cụ bàn phím thêm một thanh phím vào các phiên Chia sẻ màn hình và KVM có kết nối theo cài đặt của ứng dụng. Thay đổi cho phiên hiện tại từ menu Chia sẻ màn hình. Thanh công cụ nổi đặt thanh trong lớp kính phía trên màn hình từ xa, nơi bạn có thể kéo và thu gọn; tắt để cố định thanh dọc theo cạnh dưới. Bấm và giữ nút mũi tên của thanh để chuyển đổi phiên hiện tại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“显示键盘工具栏”会为连接遵循 App 设置的屏幕共享和 KVM 会话添加按键栏。可从“屏幕共享”菜单更改当前会话的设置。“浮动工具栏”会将按键栏以玻璃样式置于远程屏幕上方，可拖动或收起；关闭后按键栏会停靠在底部。点按并按住该栏的箭头按钮即可切换当前会话。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「顯示鍵盤工具列」會為連線遵循 App 設定的螢幕共享與 KVM 工作階段加入按鍵列。可從「螢幕共享」選單變更目前工作階段的設定。「浮動工具列」會將按鍵列以玻璃樣式置於遠端螢幕上方，可拖曳或收起；關閉後按鍵列會停駐在底部。按住該列的 V 形箭頭即可切換目前的工作階段。"
+          }
+        }
+      }
+    },
     "Show Multiplexer Tabs" : {
       "localizations" : {
         "ar" : {
@@ -744431,6 +745048,7 @@
       }
     },
     "Sign in with your account to create a short-lived SSH certificate. The server must run the opkssh verifier." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -744580,6 +745198,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用您的帳戶登入以建立短期 SSH 憑證。伺服器必須執行 opkssh 驗證器。"
+          }
+        }
+      }
+    },
+    "Sign in with your account to create a short-lived SSH certificate. The server must run the opkssh verifier. Built-in providers use opkssh's shared client IDs, which are meant for testing. For production, register your own client ID, and have the server administrator replace that provider's shared entry in /etc/opk/providers with the same issuer and your client ID, or add an entry if the issuer isn't listed." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل الدخول بحسابك لإنشاء شهادة SSH قصيرة الأمد. يجب أن يشغّل الخادم أداة التحقق opkssh. يستخدم المزوّدون المدمجون معرّفات العملاء المشتركة الخاصة بـ opkssh، وهي مخصصة للاختبار. في بيئة الإنتاج، سجّل معرّف العميل الخاص بك، واطلب من مسؤول الخادم استبدال الإدخال المشترك لذلك المزوّد في /etc/opk/providers بإدخال يحمل المُصدِر نفسه ومعرّف العميل الخاص بك، أو إضافة إدخال إذا لم يكن المُصدِر مدرجًا."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia la sessió amb el teu compte per crear un certificat SSH de curta durada. El servidor ha d'executar el verificador opkssh. Els proveïdors integrats utilitzen els ID de client compartits d'opkssh, pensats per a proves. En producció, registra el teu propi ID de client i demana a l'administrador del servidor que substitueixi l'entrada compartida d'aquest proveïdor a /etc/opk/providers per una amb el mateix emissor i el teu ID de client, o que hi afegeixi una entrada si l'emissor no hi apareix."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přihlaste se svým účtem a vytvořte krátkodobý certifikát SSH. Server musí spouštět ověřovatel opkssh. Vestavění poskytovatelé používají sdílená ID klientů opkssh, která jsou určena pro testování. Pro produkční provoz si zaregistrujte vlastní ID klienta a požádejte správce serveru, aby sdílenou položku tohoto poskytovatele v /etc/opk/providers nahradil položkou se stejným vydavatelem a vaším ID klienta, nebo aby položku přidal, pokud vydavatel není uveden."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log ind med din konto for at oprette et kortvarigt SSH-certifikat. Serveren skal køre opkssh-verifikatoren. Indbyggede udbydere bruger opkssh's delte klient-id'er, som er beregnet til test. Til produktion skal du registrere dit eget klient-id og bede serveradministratoren om at erstatte udbyderens delte post i /etc/opk/providers med en post med samme udsteder og dit klient-id, eller tilføje en post, hvis udstederen ikke står på listen."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Melden Sie sich mit Ihrem Konto an, um ein kurzlebiges SSH-Zertifikat zu erstellen. Auf dem Server muss der opkssh-Verifizierer laufen. Integrierte Anbieter verwenden die gemeinsam genutzten Client-IDs von opkssh, die für Tests gedacht sind. Registrieren Sie für den Produktivbetrieb Ihre eigene Client-ID und lassen Sie den Serveradministrator den gemeinsamen Eintrag dieses Anbieters in /etc/opk/providers durch einen Eintrag mit demselben Aussteller und Ihrer Client-ID ersetzen oder einen Eintrag hinzufügen, falls der Aussteller nicht aufgeführt ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión con tu cuenta para crear un certificado SSH de corta duración. El servidor debe ejecutar el verificador opkssh. Los proveedores integrados usan los ID de cliente compartidos de opkssh, pensados para pruebas. En producción, registra tu propio ID de cliente y pide al administrador del servidor que sustituya la entrada compartida de ese proveedor en /etc/opk/providers por una con el mismo emisor y tu ID de cliente, o que añada una entrada si el emisor no figura."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kirjaudu sisään tililläsi luodaksesi lyhytikäisen SSH-varmenteen. Palvelimella on oltava käynnissä opkssh-vahvistin. Sisäänrakennetut palveluntarjoajat käyttävät opkssh:n jaettuja asiakas-ID:itä, jotka on tarkoitettu testaukseen. Tuotantokäytössä rekisteröi oma asiakas-ID ja pyydä palvelimen ylläpitäjää korvaamaan kyseisen palveluntarjoajan jaettu merkintä tiedostossa /etc/opk/providers merkinnällä, jossa on sama myöntäjä ja oma asiakas-ID:si, tai lisäämään merkintä, jos myöntäjää ei ole luettelossa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous avec votre compte pour créer un certificat SSH éphémère. Le serveur doit exécuter le vérificateur opkssh. Les fournisseurs intégrés utilisent les ID client partagés d'opkssh, destinés aux tests. En production, enregistrez votre propre ID client et demandez à l'administrateur du serveur de remplacer l'entrée partagée de ce fournisseur dans /etc/opk/providers par une entrée avec le même émetteur et votre ID client, ou d'ajouter une entrée si l'émetteur n'y figure pas."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התחבר עם החשבון שלך כדי ליצור תעודת SSH קצרת מועד. השרת חייב להריץ את מאמת opkssh. ספקים מובנים משתמשים במזהי הלקוח המשותפים של opkssh, המיועדים לבדיקות. לסביבת ייצור, רשום מזהה לקוח משלך ובקש ממנהל השרת להחליף את הרשומה המשותפת של אותו ספק ב-/etc/opk/providers ברשומה עם אותו מנפיק ומזהה הלקוח שלך, או להוסיף רשומה אם המנפיק אינו מופיע."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jelentkezzen be a fiókjával egy rövid életű SSH-tanúsítvány létrehozásához. A kiszolgálón futnia kell az opkssh ellenőrzőnek. A beépített szolgáltatók az opkssh közös ügyfélazonosítóit használják, amelyek tesztelésre szolgálnak. Éles használathoz regisztráljon saját ügyfélazonosítót, és kérje meg a kiszolgáló rendszergazdáját, hogy az adott szolgáltató közös bejegyzését az /etc/opk/providers fájlban cserélje le egy ugyanazzal a kibocsátóval és az Ön ügyfélazonosítójával rendelkező bejegyzésre, vagy vegyen fel egy bejegyzést, ha a kibocsátó nem szerepel benne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accedi con il tuo account per creare un certificato SSH di breve durata. Il server deve eseguire il verificatore opkssh. I provider integrati usano gli ID client condivisi di opkssh, pensati per i test. In produzione, registra un tuo ID client e chiedi all'amministratore del server di sostituire la voce condivisa di quel provider in /etc/opk/providers con una voce con lo stesso emittente e il tuo ID client, oppure di aggiungere una voce se l'emittente non è presente."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アカウントでサインインして、短期間有効な SSH 証明書を作成します。サーバーで opkssh 検証ツールを実行している必要があります。組み込みのプロバイダは opkssh の共有クライアントIDを使用しますが、これはテスト用です。本番環境では独自のクライアントIDを登録し、サーバー管理者に依頼して /etc/opk/providers 内のそのプロバイダの共有エントリを、同じ発行者とあなたのクライアントIDを持つエントリに置き換えてもらうか、発行者が記載されていない場合はエントリを追加してもらってください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "계정으로 로그인하여 단기 SSH 인증서를 생성합니다. 서버에서 opkssh 검증기를 실행해야 합니다. 기본 제공 공급자는 테스트용인 opkssh의 공유 클라이언트 ID를 사용합니다. 프로덕션 환경에서는 자체 클라이언트 ID를 등록하고, 서버 관리자에게 /etc/opk/providers에 있는 해당 공급자의 공유 항목을 동일한 발급자와 사용자의 클라이언트 ID로 된 항목으로 교체하거나, 발급자가 목록에 없으면 항목을 추가하도록 요청하세요."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logg inn med kontoen din for å opprette et kortvarig SSH-sertifikat. Serveren må kjøre opkssh-verifikatoren. Innebygde leverandører bruker opkssh sine delte klient-ID-er, som er ment for testing. I produksjon bør du registrere din egen klient-ID og be serveradministratoren erstatte leverandørens delte oppføring i /etc/opk/providers med en oppføring med samme utsteder og din klient-ID, eller legge til en oppføring hvis utstederen ikke er oppført."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meld je aan met je account om een kortlevend SSH-certificaat te maken. De server moet de opkssh-verifier draaien. Ingebouwde providers gebruiken de gedeelde client-ID's van opkssh, die bedoeld zijn voor testen. Registreer voor productie je eigen client-ID en laat de serverbeheerder de gedeelde vermelding van die provider in /etc/opk/providers vervangen door een vermelding met dezelfde uitgever en jouw client-ID, of een vermelding toevoegen als de uitgever er niet in staat."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się na swoje konto, aby utworzyć krótkotrwały certyfikat SSH. Na serwerze musi działać weryfikator opkssh. Wbudowani dostawcy używają współdzielonych identyfikatorów klienta opkssh, przeznaczonych do testów. W środowisku produkcyjnym zarejestruj własny identyfikator klienta i poproś administratora serwera, aby zastąpił współdzielony wpis tego dostawcy w /etc/opk/providers wpisem z tym samym wydawcą i Twoim identyfikatorem klienta lub dodał wpis, jeśli wydawcy nie ma na liście."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicie sessão com sua conta para criar um certificado SSH de curta duração. O servidor precisa executar o verificador opkssh. Os provedores integrados usam os IDs de cliente compartilhados do opkssh, destinados a testes. Em produção, registre seu próprio ID de cliente e peça ao administrador do servidor para substituir a entrada compartilhada desse provedor em /etc/opk/providers por uma com o mesmo emissor e o seu ID de cliente, ou para adicionar uma entrada se o emissor não estiver listado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicie sessão com a sua conta para criar um certificado SSH de curta duração. O servidor tem de executar o verificador opkssh. Os fornecedores integrados usam os IDs de cliente partilhados do opkssh, destinados a testes. Em produção, registe o seu próprio ID de cliente e peça ao administrador do servidor para substituir a entrada partilhada desse fornecedor em /etc/opk/providers por uma com o mesmo emissor e o seu ID de cliente, ou para adicionar uma entrada se o emissor não constar da lista."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autentifică-te cu contul tău pentru a crea un certificat SSH de scurtă durată. Serverul trebuie să ruleze verificatorul opkssh. Furnizorii integrați folosesc ID-urile client partajate ale opkssh, destinate testării. Pentru producție, înregistrează-ți propriul ID client și cere administratorului serverului să înlocuiască intrarea partajată a acelui furnizor din /etc/opk/providers cu una având același emitent și ID-ul tău client sau să adauge o intrare dacă emitentul nu este listat."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prijavite se s svojim računom in ustvarite kratkotrajno potrdilo SSH. Strežnik mora izvajati preverjevalnik opkssh. Vgrajeni ponudniki uporabljajo skupne ID-je odjemalcev opkssh, ki so namenjeni preizkušanju. Za produkcijsko uporabo registrirajte svoj ID odjemalca in prosite skrbnika strežnika, naj skupni vnos tega ponudnika v /etc/opk/providers zamenja z vnosom z istim izdajateljem in vašim ID-jem odjemalca ali doda vnos, če izdajatelja ni na seznamu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logga in med ditt konto för att skapa ett kortlivat SSH-certifikat. Servern måste köra opkssh-verifieraren. Inbyggda leverantörer använder opkssh:s delade klient-ID:n, som är avsedda för testning. I produktion bör du registrera ett eget klient-ID och be serveradministratören att ersätta leverantörens delade post i /etc/opk/providers med en post med samma utfärdare och ditt klient-ID, eller lägga till en post om utfärdaren inte finns med."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Увійдіть за допомогою свого облікового запису, щоб створити короткочасний сертифікат SSH. На сервері має працювати верифікатор opkssh. Вбудовані постачальники використовують спільні ID клієнтів opkssh, призначені для тестування. Для робочого середовища зареєструйте власний ID клієнта й попросіть адміністратора сервера замінити спільний запис цього постачальника в /etc/opk/providers записом із тим самим емітентом і вашим ID клієнта або додати запис, якщо емітента немає в списку."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đăng nhập bằng tài khoản của bạn để tạo chứng chỉ SSH ngắn hạn. Máy chủ phải chạy trình xác minh opkssh. Các nhà cung cấp tích hợp sẵn dùng ID máy khách dùng chung của opkssh, vốn chỉ dành cho việc thử nghiệm. Khi dùng thực tế, hãy đăng ký ID máy khách của riêng bạn và nhờ quản trị viên máy chủ thay mục dùng chung của nhà cung cấp đó trong /etc/opk/providers bằng một mục có cùng nhà phát hành và ID máy khách của bạn, hoặc thêm một mục nếu nhà phát hành chưa có trong danh sách."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用您的账户登录以创建短期 SSH 证书。服务器必须运行 opkssh 验证器。内置提供商使用 opkssh 的共享客户端 ID，仅供测试使用。在生产环境中，请注册您自己的客户端 ID，并让服务器管理员将 /etc/opk/providers 中该提供商的共享条目替换为使用相同颁发者和您的客户端 ID 的条目；如果其中未列出该颁发者，则添加一个条目。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用您的帳戶登入以建立短期 SSH 憑證。伺服器必須執行 opkssh 驗證器。內建提供者使用 opkssh 的共用用戶端 ID，僅供測試使用。在正式環境中，請註冊您自己的用戶端 ID，並請伺服器管理員將 /etc/opk/providers 中該提供者的共用項目替換為使用相同簽發者與您的用戶端 ID 的項目；若其中未列出該簽發者，則新增一個項目。"
           }
         }
       }
@@ -764686,7 +765458,7 @@
       }
     },
     "SSH Agent" : {
-      "comment" : "Setting group title",
+      "comment" : "Agent key section header\nSetting group title",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -835280,6 +836052,7 @@
       }
     },
     "The OIDC client must allow the redirect URI http://localhost:3000/login-callback (opkssh convention)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -835429,6 +836202,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OIDC 用戶端必須允許重新導向 URI http://localhost:3000/login-callback（opkssh 慣例）。"
+          }
+        }
+      }
+    },
+    "The OIDC client must allow the redirect URIs http://localhost:3000/login-callback, http://localhost:10001/login-callback, and http://localhost:11110/login-callback (opkssh convention)." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يجب أن يسمح عميل OIDC بعناوين إعادة التوجيه http://localhost:3000/login-callback و http://localhost:10001/login-callback و http://localhost:11110/login-callback (وفق اصطلاح opkssh)."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El client OIDC ha de permetre els URI de redirecció http://localhost:3000/login-callback, http://localhost:10001/login-callback i http://localhost:11110/login-callback (convenció d'opkssh)."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klient OIDC musí povolit přesměrovací URI http://localhost:3000/login-callback, http://localhost:10001/login-callback a http://localhost:11110/login-callback (konvence opkssh)."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC-klienten skal tillade redirect-URI'erne http://localhost:3000/login-callback, http://localhost:10001/login-callback og http://localhost:11110/login-callback (opkssh-konvention)."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der OIDC-Client muss die Weiterleitungs-URIs http://localhost:3000/login-callback, http://localhost:10001/login-callback und http://localhost:11110/login-callback zulassen (opkssh-Konvention)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El cliente OIDC debe permitir los URI de redirección http://localhost:3000/login-callback, http://localhost:10001/login-callback y http://localhost:11110/login-callback (convención de opkssh)."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC-asiakkaan on sallittava uudelleenohjaus-URI:t http://localhost:3000/login-callback, http://localhost:10001/login-callback ja http://localhost:11110/login-callback (opkssh-käytäntö)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le client OIDC doit autoriser les URI de redirection http://localhost:3000/login-callback, http://localhost:10001/login-callback et http://localhost:11110/login-callback (convention opkssh)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "על לקוח ה-OIDC לאפשר את כתובות ההפניה http://localhost:3000/login-callback, http://localhost:10001/login-callback ו-http://localhost:11110/login-callback (מוסכמת opkssh)."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az OIDC-kliensnek engedélyeznie kell a következő átirányítási URI-kat: http://localhost:3000/login-callback, http://localhost:10001/login-callback és http://localhost:11110/login-callback (opkssh-konvenció)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il client OIDC deve consentire gli URI di reindirizzamento http://localhost:3000/login-callback, http://localhost:10001/login-callback e http://localhost:11110/login-callback (convenzione opkssh)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC クライアントはリダイレクト URI http://localhost:3000/login-callback、http://localhost:10001/login-callback、http://localhost:11110/login-callback を許可する必要があります（opkssh の規約）。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC 클라이언트는 리디렉션 URI http://localhost:3000/login-callback, http://localhost:10001/login-callback, http://localhost:11110/login-callback 을(를) 허용해야 합니다 (opkssh 규칙)."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC-klienten må tillate omdirigerings-URI-ene http://localhost:3000/login-callback, http://localhost:10001/login-callback og http://localhost:11110/login-callback (opkssh-konvensjon)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De OIDC-client moet de omleidings-URI's http://localhost:3000/login-callback, http://localhost:10001/login-callback en http://localhost:11110/login-callback toestaan (opkssh-conventie)."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klient OIDC musi zezwalać na identyfikatory URI przekierowania http://localhost:3000/login-callback, http://localhost:10001/login-callback i http://localhost:11110/login-callback (konwencja opkssh)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O cliente OIDC precisa permitir as URIs de redirecionamento http://localhost:3000/login-callback, http://localhost:10001/login-callback e http://localhost:11110/login-callback (convenção do opkssh)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O cliente OIDC tem de permitir os URIs de redirecionamento http://localhost:3000/login-callback, http://localhost:10001/login-callback e http://localhost:11110/login-callback (convenção do opkssh)."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clientul OIDC trebuie să permită URI-urile de redirecționare http://localhost:3000/login-callback, http://localhost:10001/login-callback și http://localhost:11110/login-callback (convenție opkssh)."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odjemalec OIDC mora dovoliti preusmeritvene URI-je http://localhost:3000/login-callback, http://localhost:10001/login-callback in http://localhost:11110/login-callback (dogovor opkssh)."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC-klienten måste tillåta omdirigerings-URI:erna http://localhost:3000/login-callback, http://localhost:10001/login-callback och http://localhost:11110/login-callback (opkssh-konvention)."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Клієнт OIDC має дозволяти URI переспрямування http://localhost:3000/login-callback, http://localhost:10001/login-callback і http://localhost:11110/login-callback (домовленість opkssh)."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy khách OIDC phải cho phép các URI chuyển hướng http://localhost:3000/login-callback, http://localhost:10001/login-callback và http://localhost:11110/login-callback (quy ước opkssh)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC 客户端必须允许重定向 URI http://localhost:3000/login-callback、http://localhost:10001/login-callback 和 http://localhost:11110/login-callback（opkssh 约定）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OIDC 用戶端必須允許重新導向 URI http://localhost:3000/login-callback、http://localhost:10001/login-callback 和 http://localhost:11110/login-callback（opkssh 慣例）。"
           }
         }
       }
@@ -858433,6 +859360,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RSA 金鑰可能需要較長時間"
+          }
+        }
+      }
+    },
+    "This Microsoft issuer is the personal-account tenant. For a work or school app registration, replace the tenant ID in the issuer URL with your directory (tenant) ID." : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مُصدِر Microsoft هذا هو مستأجر الحسابات الشخصية. لتسجيل تطبيق لحساب عمل أو مؤسسة تعليمية، استبدل معرّف المستأجر في عنوان URL للمُصدِر بمعرّف الدليل (المستأجر) الخاص بك."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquest emissor de Microsoft és l'inquilí de comptes personals. Per a un registre d'aplicació de feina o centre educatiu, substitueix l'ID d'inquilí de l'URL de l'emissor pel teu ID de directori (inquilí)."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tento vydavatel Microsoft je tenant pro osobní účty. Pro registraci pracovní nebo školní aplikace nahraďte ID tenanta v URL vydavatele ID vašeho adresáře (tenanta)."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne Microsoft-udsteder er tenanten for personlige konti. Ved en appregistrering til arbejde eller skole skal du erstatte tenant-id'et i udsteder-URL'en med dit katalog-id (tenant-id)."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Microsoft-Aussteller ist der Mandant für persönliche Konten. Ersetzen Sie für eine App-Registrierung für Geschäfts- oder Schulkonten die Mandanten-ID in der Aussteller-URL durch Ihre Verzeichnis-ID (Mandanten-ID)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este emisor de Microsoft es el tenant de cuentas personales. Para un registro de aplicación de trabajo o centro educativo, sustituye el ID de tenant en la URL del emisor por tu ID de directorio (tenant)."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä Microsoft-myöntäjä on henkilökohtaisten tilien vuokraaja. Työpaikan tai oppilaitoksen sovellusrekisteröintiä varten korvaa myöntäjän URL-osoitteessa oleva vuokraaja-ID hakemistosi (vuokraajan) ID:llä."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet émetteur Microsoft correspond au locataire des comptes personnels. Pour une inscription d'application professionnelle ou scolaire, remplacez l'ID du locataire dans l'URL de l'émetteur par l'ID de votre annuaire (locataire)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מנפיק Microsoft זה הוא הדייר של החשבונות האישיים. לרישום אפליקציה של עבודה או בית ספר, החלף את מזהה הדייר בכתובת ה-URL של המנפיק במזהה הספרייה (הדייר) שלך."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ez a Microsoft-kibocsátó a személyes fiókok bérlője. Munkahelyi vagy iskolai alkalmazásregisztrációhoz cserélje le a kibocsátó URL-címében szereplő bérlőazonosítót a saját címtár- (bérlő-) azonosítójára."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo emittente Microsoft è il tenant degli account personali. Per la registrazione di un'app aziendale o dell'istituto di istruzione, sostituisci l'ID tenant nell'URL dell'emittente con l'ID della tua directory (tenant)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この Microsoft 発行者は個人アカウント用のテナントです。職場または学校のアプリ登録の場合は、発行者 URL 内のテナントIDをディレクトリ（テナント）IDに置き換えてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Microsoft 발급자는 개인 계정 테넌트입니다. 회사 또는 학교 앱 등록의 경우 발급자 URL의 테넌트 ID를 디렉터리(테넌트) ID로 바꾸세요."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denne Microsoft-utstederen er leietakeren for personlige kontoer. For en appregistrering for jobb eller skole erstatter du leietaker-ID-en i utsteder-URL-en med katalog-ID-en (leietaker-ID-en) din."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Microsoft-uitgever is de tenant voor persoonlijke accounts. Vervang voor een app-registratie voor werk of school de tenant-ID in de uitgever-URL door je directory-ID (tenant-ID)."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten wydawca Microsoft to dzierżawa kont osobistych. W przypadku rejestracji aplikacji służbowej lub szkolnej zastąp identyfikator dzierżawy w adresie URL wydawcy identyfikatorem swojego katalogu (dzierżawy)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este emissor da Microsoft é o tenant de contas pessoais. Para um registro de aplicativo corporativo ou de estudante, substitua o ID do tenant na URL do emissor pelo ID do seu diretório (tenant)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este emissor da Microsoft é o inquilino das contas pessoais. Para um registo de aplicação profissional ou escolar, substitua o ID do inquilino no URL do emissor pelo ID do seu diretório (inquilino)."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acest emitent Microsoft este locatarul pentru conturi personale. Pentru o înregistrare de aplicație de serviciu sau de școală, înlocuiește ID-ul locatarului din URL-ul emitentului cu ID-ul directorului tău (locatar)."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta izdajatelj Microsoft je najemnik za osebne račune. Za registracijo službene ali šolske aplikacije zamenjajte ID najemnika v URL-ju izdajatelja z ID-jem svojega imenika (najemnika)."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här Microsoft-utfärdaren är klientorganisationen för personliga konton. För en appregistrering för arbete eller skola ersätter du klientorganisations-ID:t i utfärdarens URL med ditt katalog-ID (klientorganisations-ID)."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей емітент Microsoft є орендарем особистих облікових записів. Для реєстрації робочого або навчального застосунку замініть ID орендаря в URL-адресі емітента на ID свого каталогу (орендаря)."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhà phát hành Microsoft này là tenant dành cho tài khoản cá nhân. Đối với đăng ký ứng dụng cơ quan hoặc trường học, hãy thay ID tenant trong URL nhà phát hành bằng ID thư mục (tenant) của bạn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Microsoft 颁发者是个人账户租户。对于工作或学校应用注册，请将颁发者 URL 中的租户 ID 替换为您的目录（租户）ID。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Microsoft 簽發者是個人帳戶租用戶。若是公司或學校的應用程式註冊，請將簽發者 URL 中的租用戶 ID 替換為您的目錄（租用戶）ID。"
           }
         }
       }
@@ -925649,6 +926730,160 @@
         }
       }
     },
+    "Use Your Own Client ID" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدام معرّف العميل الخاص بك"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilitza el teu propi ID de client"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít vlastní ID klienta"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brug dit eget klient-id"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Client-ID verwenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar tu propio ID de cliente"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytä omaa asiakas-ID:tä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser votre propre ID client"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שימוש במזהה לקוח משלך"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saját ügyfélazonosító használata"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa il tuo ID client"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "独自のクライアントIDを使用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자체 클라이언트 ID 사용"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruk din egen klient-ID"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigen client-ID gebruiken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj własnego identyfikatora klienta"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar Seu Próprio ID de Cliente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar o Seu Próprio ID de Cliente"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folosește propriul ID client"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabi svoj ID odjemalca"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd eget klient-ID"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовувати власний ID клієнта"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng ID Máy Khách Riêng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用您自己的客户端 ID"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用您自己的用戶端 ID"
+          }
+        }
+      }
+    },
     "Used by the local shell. iOS has no terminfo database, so tools fall back to built-in terminal descriptions. A name they don't recognize can leave apps like vim without terminal capabilities." : {
       "comment" : "Terminal type footer: local shell on iOS",
       "localizations" : {
@@ -954860,7 +956095,7 @@
       }
     },
     "Weekly" : {
-      "comment" : "Agent usage window title: weekly quota",
+      "comment" : "Agent usage window title: weekly quota\nUpdate interval: weekly",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

@@ -178,6 +178,10 @@ extension Ghostty {
         /// Used to set initial occlusion state when surface is created.
         var isTabVisible: Bool = true
 
+        /// Bumped on every screen change. The git diff panel polls only
+        /// while this moves, since output is when files change.
+        var surfaceContentSerial: UInt64 = 0
+
         /// Whether tab/window state has explicitly supplied `isTabVisible`.
         /// Before a surface exists, `setOcclusion` records the desired state
         /// here so surface creation never has to assume every new tab is visible.
@@ -558,6 +562,34 @@ extension Ghostty {
         /// A pane a multiplexer controller owns (tmux -CC or herdr control
         /// mode): local split edits must round-trip through the server.
         var isMultiplexerPane: Bool { isTmuxPane || isHerdrPane }
+
+        /// The cwd a new local shell may start in. Multiplexer panes carry `.local()` but
+        /// report their server's cwd, and a local gateway shell may just be running ssh,
+        /// so they qualify only with evidence of a local client.
+        var inheritableLocalDirectory: String? {
+            guard case .local = connectionConfig else { return nil }
+            if isHerdrPane {
+                guard HerdrController.controller(for: self)?.gateway?
+                        .localMultiplexerAttachmentForPersistence?.isHerdrControl == true else { return nil }
+            } else if let binding = tmuxPaneBinding {
+                guard TmuxWindowRegistry.gatewayView(ownerTerminalUUID: binding.parentUUID)?
+                        .runsLocalTmuxClient == true else { return nil }
+            }
+            return pwd
+        }
+
+        /// The helper census, or tmux leading the PTY's foreground group, since the
+        /// census is skipped with session persistence off.
+        private var runsLocalTmuxClient: Bool {
+            if localMultiplexerAttachmentForPersistence?.isTmuxControl == true { return true }
+            #if targetEnvironment(macCatalyst)
+            guard case .local = connectionConfig,
+                  let group = (session as? CatalystLocalShellSession)?.foregroundProcessGroup() else { return false }
+            return LocalForegroundProcessProbe.program(processGroup: group)?.name == "tmux"
+            #else
+            return false
+            #endif
+        }
 
         /// Per-pane identity queried from tmux. A projected tmux surface has a
         /// synthetic Ghostty title such as "Pane%196", so its ordinary OSC
@@ -5432,6 +5464,7 @@ extension Ghostty.TerminalView: GhosttyActionDelegate {
     }
 
     func handleSurfaceContentChanged() {
+        surfaceContentSerial &+= 1
         AgentAttentionCenter.shared.noteContentChanged(terminal: self)
         noteLocalForegroundMayHaveChanged()
         if let binding = tmuxPaneBinding,
