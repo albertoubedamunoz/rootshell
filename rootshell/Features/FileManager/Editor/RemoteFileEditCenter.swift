@@ -30,6 +30,9 @@ enum RemoteEditError: LocalizedError {
     case remoteDeleted
     case stagingUnavailable(directory: String, fileName: String)
     case recoveryConflict(targetPath: String, backupPath: String, stagedPath: String?)
+    case targetChanged(fileName: String)
+    case unpinnedPrivilegedTarget(directory: String, fileName: String)
+    case principalChanged(fileName: String)
 
     var errorDescription: String? {
         switch self {
@@ -54,30 +57,66 @@ enum RemoteEditError: LocalizedError {
                 return String(localized: "A previous save of “\(fileName)” was interrupted and another file now exists at that path. Both the backup (“\(backupName)”) and your staged edit (“\(stagedName)”) were preserved in the same folder. Inspect or remove the backup before editing again.", comment: "File editor recovery conflict error with both backup and staged file")
             }
             return String(localized: "A previous save of “\(fileName)” was interrupted and the file at that path no longer matches the staged edit. The original backup (“\(backupName)”) was preserved in the same folder. Inspect or remove the backup before editing again.", comment: "File editor recovery conflict error with preserved backup")
+        case .targetChanged(let fileName):
+            return String(localized: "“\(fileName)” now points to a different file, or its owner changed, since it was opened, so it wasn't saved. Reopen it to edit the current file.", comment: "File editor error when the path was redirected or replaced; argument is file name")
+        case .unpinnedPrivilegedTarget(let directory, let fileName):
+            return String(localized: "“\(fileName)” wasn't saved as root because other users can rename entries in “\(directory)”, which could redirect the save to another file. Close this edit, then open the file again as its owner.", comment: "File editor error refusing a root save in a directory other users can modify; arguments are folder path and file name")
+        case .principalChanged(let fileName):
+            return String(localized: "“\(fileName)” wasn't saved because the connection's account or credentials changed since it was opened. Close this edit, then open the file again.", comment: "File editor error when the saved connection or storage credentials were edited during an edit; argument is file name")
         }
     }
 }
 
+/// Bytes fetched for an edit, with the connection principal that served them.
+nonisolated struct FetchedRemoteFile: Sendable {
+    let data: Data
+    let fingerprint: RemoteFileFingerprint
+    let principal: EditPrincipal
+}
+
+extension SSHConfig {
+    /// This config's login for `FileEditRecoveryKey`: host, port, user, and the full jump
+    /// chain, so two hosts behind different bastions never share recovery records.
+    var fileEditLogin: FileEditRecoveryKey.Login {
+        FileEditRecoveryKey.Login(
+            host: host,
+            port: port,
+            username: username,
+            jumpHops: jumpChain.map { FileEditRecoveryKey.JumpHop(host: $0.host, port: $0.port, username: $0.username) },
+            cachedIP: cachedIP
+        )
+    }
+}
+
 extension FileEndpoint {
-    /// Stable filesystem-level identity for persisting interrupted SFTP swap recovery records.
-    /// Includes the full SSH jump chain (matching `SSHConfig.reachesSameAccount`) and sudo scope
-    /// so two hosts behind different bastions can never consume each other's recovery records.
-    var recoveryKey: String {
-        if let ssh = sshConfig {
-            return FileEditRecoveryKey.ssh(
-                host: ssh.host,
-                port: ssh.port,
-                username: ssh.username,
-                isSudo: isSudo,
-                jumpHops: ssh.jumpChain.map {
-                    FileEditRecoveryKey.JumpHop(host: $0.host, port: $0.port, username: $0.username)
-                }
-            )
+    /// The principal a connection opened now should serve, mirroring `SFTPConnectionFactory`:
+    /// a pane that can lend its connection uses its own login; a closed or Mosh pane falls back
+    /// to its saved profile. Only decides reuse; reads and writes bind to the connection's own
+    /// `principal`.
+    var predictedPrincipal: EditPrincipal {
+        if isLocal { return .local }
+        if case .storage(let id) = self {
+            return EditPrincipal(key: storageProvider?.principalIdentity ?? "storage-missing:\(id.uuidString)")
         }
-        if let persistent = persistentKey {
-            return persistent
+        guard let login = predictedLogin else { return EditPrincipal(key: "unavailable:\(displayName)") }
+        return EditPrincipal(login: login, isSudo: isSudo)
+    }
+
+    private var predictedLogin: FileEditRecoveryKey.Login? {
+        switch self {
+        case .local, .storage:
+            return nil
+        case .profile(let id):
+            return ConnectionProfileManager.shared.profile(for: id)?.sshConfig.fileEditLogin
+        case .pane(let source):
+            if !SFTPConnectionFactory.canBorrowPane(source), let id = source.fallbackProfileID,
+               let profile = ConnectionProfileManager.shared.profile(for: id) {
+                return profile.sshConfig.fileEditLogin
+            }
+            return source.fallbackConfig.underlyingSSHConfig?.fileEditLogin
+        case .sudo(let base):
+            return base.predictedLogin
         }
-        return "local"
     }
 }
 
@@ -152,6 +191,8 @@ final class RemoteEditSession: Identifiable {
 
     let id = UUID()
     let endpoint: FileEndpoint
+    /// The serving connection's `principal` when the working copy was fetched.
+    let principal: EditPrincipal
     let remotePath: String
     let fileName: String
     private(set) var localURL: URL
@@ -161,6 +202,8 @@ final class RemoteEditSession: Identifiable {
     /// stored immutably so moving `localURL` elsewhere can never cause cleanup to delete a user folder.
     private let ownedStagingDirectory: URL?
     var editorName: String?
+    /// App explicitly chosen through Open With on macOS, reused when the edit is reopened.
+    var editorAppURL: URL?
     /// Set when the file is being edited in a bundled terminal editor (`vim` / `hx`) on iOS/iPadOS/visionOS.
     var embeddedEditor: FileManagerEmbeddedEditor?
 
@@ -186,6 +229,7 @@ final class RemoteEditSession: Identifiable {
 
     init(
         endpoint: FileEndpoint,
+        principal: EditPrincipal,
         remotePath: String,
         fileName: String,
         localURL: URL,
@@ -199,6 +243,7 @@ final class RemoteEditSession: Identifiable {
         onUploadCompleted: @escaping (FileEndpoint, String) -> Void
     ) {
         self.endpoint = endpoint
+        self.principal = principal
         self.remotePath = remotePath
         self.fileName = fileName
         self.localURL = localURL
@@ -216,6 +261,19 @@ final class RemoteEditSession: Identifiable {
     }
 
     var ownsStagingDirectory: Bool { ownedStagingDirectory != nil }
+
+    /// Whether a save would pass `requirePrincipal` now: false once `endpoint` would connect
+    /// under any other login key (an edited profile or provider, even to an alias of the same
+    /// host, or a pane falling back to its profile). Decides whether a session may be reused.
+    var hasCurrentPrincipal: Bool {
+        FileConnectionPool.shared.expectedPrincipal(for: endpoint).key == principal.key
+    }
+
+    /// The working copy only ever goes back through a connection serving the exact login it
+    /// came from; aliases only help find a session, never relax this.
+    private func requirePrincipal(_ served: EditPrincipal) throws {
+        guard served.key == principal.key else { throw RemoteEditError.principalChanged(fileName: fileName) }
+    }
 
     var remoteDisplayPath: String {
         "\(endpoint.displayName):\(remotePath)"
@@ -282,11 +340,14 @@ final class RemoteEditSession: Identifiable {
         uploadTask = Task { [weak self] in
             defer { self?.uploadTask = nil }
             do {
-                let fs = try await FileConnectionPool.shared.fileSystem(for: endpoint, purpose: .transfer, prompts: activePrompts)
+                let (fs, served) = try await FileConnectionPool.shared.fileSystemAndPrincipal(
+                    for: endpoint, purpose: .transfer, prompts: activePrompts
+                )
+                try self?.requirePrincipal(served)
                 let (data, fingerprint) = try await RemoteFileEditCenter.fetchRemoteFile(
                     path: remotePath,
                     fs: fs,
-                    endpointKey: endpoint.recoveryKey,
+                    endpointKey: served.key,
                     maxBytes: FileEditClassification.maxExternalEditBytes
                 )
                 try await Self.writeCoordinated(data, to: localURL)
@@ -597,12 +658,15 @@ final class RemoteEditSession: Identifiable {
                 self.state = .uploading
                 self.updateStagingManifest(hasPendingUpload: true)
 
-                let fs = try await FileConnectionPool.shared.fileSystem(for: endpoint, purpose: .transfer, prompts: activePrompts)
+                let (fs, served) = try await FileConnectionPool.shared.fileSystemAndPrincipal(
+                    for: endpoint, purpose: .transfer, prompts: activePrompts
+                )
+                try self.requirePrincipal(served)
                 let newFingerprint = try await RemoteFileEditCenter.uploadData(
                     data,
                     to: remotePath,
                     on: fs,
-                    endpointKey: endpoint.recoveryKey,
+                    endpointKey: served.key,
                     expectedFingerprint: expectedFingerprint,
                     forceOverwrite: forceOverwrite
                 )
@@ -748,7 +812,7 @@ final class RemoteFileEditCenter {
     @ObservationIgnored private var lifecycleObservers: [NSObjectProtocol] = []
     /// Tracks in-flight external/embedded opens so overlapping clicks cannot race and clobber
     /// each other's working copies before session registration completes.
-    @ObservationIgnored private var inFlightOpens: [(id: UUID, endpoint: FileEndpoint, remotePath: String)] = []
+    @ObservationIgnored private var inFlightOpens: [(id: UUID, principal: EditPrincipal, remotePath: String)] = []
     /// Live prompt handlers owned by currently open File Manager windows, so an app-wide edit
     /// session whose originating window closed can still reauthenticate through a surviving window.
     @ObservationIgnored private var livePrompts: [WeakPrompts] = []
@@ -786,6 +850,73 @@ final class RemoteFileEditCenter {
     var hasActiveUploads: Bool { sessions.contains { $0.state == .uploading } }
     var hasAttentionItems: Bool {
         !recoveryConflicts.isEmpty || !preservedEdits.isEmpty || sessions.contains { $0.state.needsAttention }
+    }
+
+    /// Writes an in-app editor's unsaved text to its own staging folder, with a manifest
+    /// marking it unsynced so relaunch cleanup keeps it. Returns the folder, or nil if
+    /// nothing was written. Not listed in `preservedEdits` until adopted.
+    func writeEditorRecoveryCopy(_ data: Data, fileName: String, endpoint: FileEndpoint, remotePath: String) -> URL? {
+        do {
+            return try Self.writeStagedFile(
+                data, named: Self.recoveryFileName(for: fileName), endpoint: endpoint,
+                remotePath: remotePath, syncedDigest: nil
+            ).deletingLastPathComponent()
+        } catch {
+            Self.logger.error("Couldn't write a recovery copy of \(fileName, privacy: .private): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Writes `data` into a fresh staging folder with its manifest and returns the file.
+    /// A nil `syncedDigest` marks it unsynced, so relaunch cleanup always keeps it.
+    private static func writeStagedFile(
+        _ data: Data, named fileName: String, endpoint: FileEndpoint, remotePath: String, syncedDigest: Data?
+    ) throws -> URL {
+        let folder = stagingRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let destination = folder.appendingPathComponent(fileName)
+        do {
+            try data.write(to: destination, options: .atomic)
+        } catch {
+            removeStagingDirectory(folder)
+            throw error
+        }
+        FileEditStagingCleanup.writeManifest(
+            StagingFolderManifest(
+                folderName: folder.lastPathComponent,
+                fileName: fileName,
+                lastSyncedHashHex: syncedDigest.map { FileEditStagingCleanup.hexDigest($0) } ?? "",
+                hasPendingUpload: syncedDigest == nil,
+                endpointDisplayName: endpoint.displayName,
+                remotePath: remotePath
+            ),
+            in: stagingRoot
+        )
+        return destination
+    }
+
+    /// A local name for a recovery copy. Object keys can outgrow a file name (255 bytes)
+    /// or hold a slash; the manifest's remotePath keeps the original.
+    nonisolated static func recoveryFileName(for name: String) -> String {
+        let cleaned = name.replacingOccurrences(of: "/", with: "_")
+        if cleaned.isEmpty || cleaned == "." || cleaned == ".." { return "recovered.txt" }
+        guard cleaned.utf8.count > 200 else { return cleaned }
+        let ext = (cleaned as NSString).pathExtension
+        let keepsExtension = !ext.isEmpty && ext.utf8.count <= 16
+        var stem = keepsExtension ? (cleaned as NSString).deletingPathExtension : cleaned
+        while stem.utf8.count > 180 { stem.removeLast() }
+        return keepsExtension ? "\(stem)….\(ext)" : "\(stem)…"
+    }
+
+    /// Offers a recovery copy in the edits bar of every window, for export or discard.
+    func adoptEditorRecoveryCopy(_ folder: URL, fileName: String, endpoint: FileEndpoint, remotePath: String) {
+        preservedEdits.append(PreservedUnsyncedEdit(
+            folderURL: folder,
+            files: [folder.appendingPathComponent(Self.recoveryFileName(for: fileName))],
+            fileName: fileName,
+            endpointDisplayName: endpoint.displayName,
+            remotePath: remotePath
+        ))
     }
 
     func discardPreservedEdit(_ edit: PreservedUnsyncedEdit) {
@@ -826,10 +957,18 @@ final class RemoteFileEditCenter {
         recoveryConflicts.removeAll { $0.id == notice.id }
     }
 
+    /// The session a reopen through `endpoint` may reuse: same account as `endpoint` would
+    /// connect as now, and its own endpoint still connects as the account its copy came from.
     func existingSession(for endpoint: FileEndpoint, remotePath: String) -> RemoteEditSession? {
+        session(for: FileConnectionPool.shared.expectedPrincipal(for: endpoint), remotePath: remotePath)
+    }
+
+    /// Aliases find a session; only one that can still upload (`hasCurrentPrincipal`) is reused.
+    private func session(for principal: EditPrincipal, remotePath: String) -> RemoteEditSession? {
         sessions.first {
-            $0.endpoint.sharesFileSystem(with: endpoint)
+            $0.principal.reachesSameAccount(as: principal)
                 && RemoteEditPathIdentity.matches($0.remotePath, remotePath)
+                && $0.hasCurrentPrincipal
         }
     }
 
@@ -840,15 +979,38 @@ final class RemoteFileEditCenter {
     /// Claims an exclusive in-flight open slot for `(endpoint, remotePath)`.
     /// Returns a token to pass to `endOpen(token:)`, or `nil` if an open for the same file is already in flight.
     func beginOpen(for endpoint: FileEndpoint, remotePath: String) -> UUID? {
+        let principal = FileConnectionPool.shared.expectedPrincipal(for: endpoint)
         guard !inFlightOpens.contains(where: {
-            $0.endpoint.sharesFileSystem(with: endpoint)
+            $0.principal.reachesSameAccount(as: principal)
                 && RemoteEditPathIdentity.matches($0.remotePath, remotePath)
         }) else {
             return nil
         }
         let token = UUID()
-        inFlightOpens.append((id: token, endpoint: endpoint, remotePath: remotePath))
+        inFlightOpens.append((id: token, principal: principal, remotePath: remotePath))
         return token
+    }
+
+    enum StagedOpenDecision {
+        case launch
+        case reuse(RemoteEditSession)
+        case drop
+    }
+
+    /// Re-keys an in-flight open to the principal that actually served its copy, so a missed
+    /// prediction can't let a second open launch a competing copy. Call after staging and
+    /// before handing the file to an editor; on `.reuse` or `.drop`, discard the staged copy.
+    func confirmStagedOpen(token: UUID, servedBy principal: EditPrincipal, remotePath: String) -> StagedOpenDecision {
+        if let existing = session(for: principal, remotePath: remotePath) { return .reuse(existing) }
+        guard let index = inFlightOpens.firstIndex(where: { $0.id == token }) else { return .drop }
+        let covered = inFlightOpens.contains {
+            $0.id != token
+                && $0.principal.reachesSameAccount(as: principal)
+                && RemoteEditPathIdentity.matches($0.remotePath, remotePath)
+        }
+        if covered { return .drop }
+        inFlightOpens[index].principal = principal
+        return .launch
     }
 
     func endOpen(token: UUID) {
@@ -874,49 +1036,35 @@ final class RemoteFileEditCenter {
     }
 
     /// Downloads a remote file into a fresh staging folder so it can be opened in an external
-    /// or embedded editor.
+    /// or embedded editor. `principal` is the account that served the bytes, for `registerSession`.
     func stageForExternalEdit(
         entry: RFEntry,
         endpoint: FileEndpoint,
         prompts: FileManagerPrompts,
-        preloaded: (data: Data, fingerprint: RemoteFileFingerprint)? = nil
-    ) async throws -> (stagedURL: URL, hash: Data, fingerprint: RemoteFileFingerprint) {
+        preloaded: FetchedRemoteFile? = nil
+    ) async throws -> (stagedURL: URL, hash: Data, fingerprint: RemoteFileFingerprint, principal: EditPrincipal) {
         let data: Data
         let fingerprint: RemoteFileFingerprint
+        let principal: EditPrincipal
         if let preloaded {
-            data = preloaded.data
-            fingerprint = preloaded.fingerprint
+            (data, fingerprint, principal) = (preloaded.data, preloaded.fingerprint, preloaded.principal)
         } else {
-            let fs = try await FileConnectionPool.shared.fileSystem(for: endpoint, purpose: .transfer, prompts: prompts)
+            let (fs, served) = try await FileConnectionPool.shared.fileSystemAndPrincipal(
+                for: endpoint, purpose: .transfer, prompts: prompts
+            )
             (data, fingerprint) = try await Self.fetchRemoteFile(
                 path: entry.path,
                 fs: fs,
-                endpointKey: endpoint.recoveryKey,
+                endpointKey: served.key,
                 maxBytes: FileEditClassification.maxExternalEditBytes
             )
+            principal = served
         }
-        let folder = Self.stagingRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let destination = folder.appendingPathComponent(entry.name)
         let digest = EditableTextDocument.contentDigest(data)
-        do {
-            try data.write(to: destination, options: .atomic)
-        } catch {
-            Self.removeStagingDirectory(folder)
-            throw error
-        }
-        FileEditStagingCleanup.writeManifest(
-            StagingFolderManifest(
-                folderName: folder.lastPathComponent,
-                fileName: entry.name,
-                lastSyncedHashHex: FileEditStagingCleanup.hexDigest(digest),
-                hasPendingUpload: false,
-                endpointDisplayName: endpoint.displayName,
-                remotePath: entry.path
-            ),
-            in: Self.stagingRoot
+        let destination = try Self.writeStagedFile(
+            data, named: entry.name, endpoint: endpoint, remotePath: entry.path, syncedDigest: digest
         )
-        return (destination, digest, fingerprint)
+        return (destination, digest, fingerprint, principal)
     }
 
     /// Starts watching a staged or externally moved file and auto-uploads every save back to `endpoint`.
@@ -924,6 +1072,7 @@ final class RemoteFileEditCenter {
     @discardableResult
     func registerSession(
         endpoint: FileEndpoint,
+        principal: EditPrincipal,
         remotePath: String,
         fileName: String,
         localURL: URL,
@@ -935,7 +1084,9 @@ final class RemoteFileEditCenter {
         embeddedEditor: FileManagerEmbeddedEditor? = nil,
         prompts: FileManagerPrompts
     ) -> RemoteEditSession {
-        if let existing = existingSession(for: endpoint, remotePath: remotePath) {
+        // Match on who fetched this copy, not who `endpoint` connects as now: it may have changed.
+        // A stale session can't upload, so it never absorbs a fresh copy.
+        if let existing = session(for: principal, remotePath: remotePath) {
             // Preserve the existing session's working copy; only clean up our redundant staging copy.
             if holdsSecurityScope {
                 localURL.stopAccessingSecurityScopedResource()
@@ -952,6 +1103,7 @@ final class RemoteFileEditCenter {
             : nil
         let session = RemoteEditSession(
             endpoint: endpoint,
+            principal: principal,
             remotePath: remotePath,
             fileName: fileName,
             localURL: localURL,
@@ -980,15 +1132,17 @@ final class RemoteFileEditCenter {
         stagedURL: URL,
         hash: Data,
         fingerprint: RemoteFileFingerprint,
+        principal: EditPrincipal,
         appURL: URL?,
         prompts: FileManagerPrompts
     ) async throws {
         defer { endOpen(token: openToken) }
         do {
-            let appName = try await ExternalEditorBridge.open(stagedURL, withApplication: appURL, fallbackToPlainText: true)
+            let appName = try await ExternalEditorBridge.open(stagedURL, withApplication: appURL)
             let activePrompts = resolveLivePrompts(preferring: prompts)
-            registerSession(
+            let session = registerSession(
                 endpoint: endpoint,
+                principal: principal,
                 remotePath: entry.path,
                 fileName: entry.name,
                 localURL: stagedURL,
@@ -999,6 +1153,7 @@ final class RemoteFileEditCenter {
                 editorName: appName,
                 prompts: activePrompts
             )
+            if let appURL { session.editorAppURL = appURL }
         } catch {
             Self.removeStagingDirectory(stagedURL.deletingLastPathComponent())
             throw error
@@ -1062,12 +1217,8 @@ final class RemoteFileEditCenter {
             return try await s3.readObjectForEdit(path, maxBytes: maxBytes)
         }
 
-        // Heal any interrupted SFTP swap on this path before reading (serialized with any active commit).
         if case .sftp(let sftp) = fs.backend {
-            let resolved = try await resolveSFTPTargetPath(path, sftp: sftp, requireConfirmedRegularType: false)
-            try await SFTPPathOperationGate.shared.withLock(endpointKey: endpointKey, targetPath: resolved) {
-                try await recoverInterruptedSFTPSwapLocked(endpointKey: endpointKey, targetPath: resolved, sftp: sftp)
-            }
+            return try await fetchSFTPFile(path: path, sftp: sftp, endpointKey: endpointKey, maxBytes: maxBytes)
         }
 
         let info = try await fs.info(path)
@@ -1105,6 +1256,61 @@ final class RemoteFileEditCenter {
             modified: info.modified
         )
         return (data, fingerprint)
+    }
+
+    /// Heals any interrupted swap on the resolved path (serialized with any active commit), then
+    /// reads it through one handle. Type, size, mtime and owner come from that handle's FSTAT,
+    /// so the owner the edit is bound to belongs to the file the bytes came from.
+    private static func fetchSFTPFile(
+        path: String,
+        sftp: SFTPClient,
+        endpointKey: String,
+        maxBytes: Int64
+    ) async throws -> (data: Data, fingerprint: RemoteFileFingerprint) {
+        let resolved = try await resolveSFTPTargetPath(path, sftp: sftp, requireConfirmedRegularType: false)
+        try await SFTPPathOperationGate.shared.withLock(targetPath: resolved) {
+            try await recoverInterruptedSFTPSwapLocked(endpointKey: endpointKey, targetPath: resolved, sftp: sftp)
+        }
+
+        let file: SFTPFile
+        do {
+            file = try await sftp.openFile(filePath: resolved, flags: .read)
+        } catch {
+            throw SFTPError.from(sftpError: error, path: path)
+        }
+        do {
+            let attrs = try await file.readHandleAttributes()
+            if SFTPFileType(permissions: attrs.permissions) == .directory {
+                throw RemoteEditError.isDirectory
+            }
+            if let size = attrs.size, size > UInt64(maxBytes) {
+                throw RemoteEditError.tooLarge(limitBytes: maxBytes)
+            }
+            var data = Data()
+            if let size = attrs.size, size > 0 { data.reserveCapacity(Int(size)) }
+            var offset: UInt64 = 0
+            while true {
+                try Task.checkCancellation()
+                var chunk = try await file.read(from: offset, length: 262_144)
+                guard chunk.readableBytes > 0 else { break }
+                if Int64(data.count) + Int64(chunk.readableBytes) > maxBytes {
+                    throw RemoteEditError.tooLarge(limitBytes: maxBytes)
+                }
+                offset += UInt64(chunk.readableBytes)
+                data.append(chunk.readData(length: chunk.readableBytes) ?? Data())
+            }
+            try? await file.close()
+            let fingerprint = RemoteFileFingerprint(
+                size: UInt64(data.count),
+                modified: attrs.accessModificationTime?.modificationTime,
+                identity: RemoteFileIdentity(resolvedPath: resolved, ownership: sftpOwnership(of: attrs))
+            )
+            return (data, fingerprint)
+        } catch {
+            try? await file.close()
+            if error is CancellationError || error is RemoteEditError { throw error }
+            throw SFTPError.from(sftpError: error, path: path)
+        }
     }
 
     /// Uploads `data` back to `remotePath` safely:
@@ -1189,8 +1395,9 @@ final class RemoteFileEditCenter {
 
     // MARK: - Crash-Safe SFTP Commit & Recovery
 
-    /// Resolves `remotePath` to its final destination path when it is a symlink so saves
-    /// replace the target file instead of overwriting the symlink itself.
+    /// Resolves `remotePath` to its canonical path (following a final symlink and any symlinked
+    /// ancestors) so saves replace the target file instead of the symlink, and so open and save
+    /// can compare the file they bind to.
     /// Only treats a confirmed `SFTPStatusCode.noSuchFile` as a missing path; all other `lstat`
     /// and `realpath` errors propagate. When `requireConfirmedRegularType` is true (all saves),
     /// an existing entry with missing permissions or zero type bits is rejected rather than assumed
@@ -1205,23 +1412,38 @@ final class RemoteFileEditCenter {
             linkAttrs = try await sftp.getLinkAttributes(at: remotePath)
         } catch {
             if SFTPError.sftpStatus(from: error)?.errorCode == .noSuchFile {
-                return remotePath
+                // Canonicalize the parent too; fall back only when the parent is confirmed missing.
+                let parent = FileTransferLogic.parent(of: remotePath)
+                let canonicalParent: String
+                do {
+                    canonicalParent = try await sftp.getRealPath(atPath: parent)
+                } catch {
+                    if SFTPError.sftpStatus(from: error)?.errorCode == .noSuchFile {
+                        return remotePath
+                    }
+                    throw SFTPError.from(sftpError: error, path: parent)
+                }
+                guard !canonicalParent.isEmpty else {
+                    throw SFTPError.transferFailed(
+                        file: remotePath,
+                        reason: String(localized: "Couldn't resolve the file's full path on the server.", comment: "File editor path resolution error")
+                    )
+                }
+                return FileTransferLogic.join(canonicalParent, FileTransferLogic.lastComponent(of: remotePath))
             }
             throw SFTPError.from(sftpError: error, path: remotePath)
         }
 
         switch SFTPFileType(permissions: linkAttrs.permissions) {
-        case .regularFile:
-            return remotePath
         case .directory:
             throw RemoteEditError.isDirectory
-        case .symlink:
+        case .regularFile, .symlink:
             do {
                 let resolved = try await sftp.getRealPath(atPath: remotePath)
                 guard !resolved.isEmpty else {
                     throw SFTPError.transferFailed(
                         file: remotePath,
-                        reason: String(localized: "Couldn't resolve the symlink target before saving.", comment: "File editor symlink resolution error")
+                        reason: String(localized: "Couldn't resolve the file's full path on the server.", comment: "File editor path resolution error")
                     )
                 }
                 return resolved
@@ -1261,6 +1483,42 @@ final class RemoteFileEditCenter {
             size: size,
             modified: attrs.accessModificationTime?.modificationTime
         ))
+    }
+
+    private static func sftpOwnership(of attrs: SFTPFileAttributes) -> SFTPOwnership? {
+        attrs.uidgid.map { SFTPOwnership(uid: $0.userId, gid: $0.groupId) }
+    }
+
+    /// Refuses a root save unless only root can rename entries in every directory above the
+    /// target's parent, so the parent can't be swapped for a symlink between checks and commit.
+    private static func verifySFTPParentPinnedForRoot(_ targetPath: String, sftp: SFTPClient) async throws {
+        let fileName = FileTransferLogic.lastComponent(of: targetPath)
+        guard let chain = SFTPPrivilegedTarget.directoryChain(for: targetPath) else {
+            throw RemoteEditError.unpinnedPrivilegedTarget(directory: targetPath, fileName: fileName)
+        }
+        var attrs: [SFTPFileAttributes] = []
+        for directory in chain {
+            let directoryAttrs: SFTPFileAttributes
+            do {
+                directoryAttrs = try await sftp.getLinkAttributes(at: directory)
+            } catch {
+                throw SFTPError.from(sftpError: error, path: directory)
+            }
+            guard SFTPFileType(permissions: directoryAttrs.permissions) == .directory else {
+                throw RemoteEditError.unpinnedPrivilegedTarget(directory: directory, fileName: fileName)
+            }
+            attrs.append(directoryAttrs)
+        }
+        for index in attrs.indices.dropLast() {
+            let pinned = SFTPPrivilegedTarget.pinsEntry(
+                directoryMode: attrs[index].permissions,
+                directoryUID: attrs[index].uidgid?.userId,
+                childUID: attrs[index + 1].uidgid?.userId
+            )
+            guard pinned else {
+                throw RemoteEditError.unpinnedPrivilegedTarget(directory: chain[index], fileName: fileName)
+            }
+        }
     }
 
     /// Probes `path` without following symlinks, classifying missing files strictly from Citadel's
@@ -1306,14 +1564,14 @@ final class RemoteFileEditCenter {
     }
 
     /// Reconciles every pending SFTP swap recovery record and any orphaned uncommitted
-    /// temporary staging files for `endpoint` right after connecting, so a file hidden under
-    /// a backup name reappears before listings run and orphaned temp files are cleaned up.
-    static func recoverPendingSwaps(for endpoint: FileEndpoint, on fs: FileSystemEndpoint) async {
+    /// temporary staging files for the connection signed in as `endpointKey` right after
+    /// connecting, so a file hidden under a backup name reappears before listings run and
+    /// orphaned temp files are cleaned up.
+    static func recoverPendingSwaps(endpointKey: String, displayName: String, on fs: FileSystemEndpoint) async {
         guard case .sftp(let sftp) = fs.backend else { return }
-        let endpointKey = endpoint.recoveryKey
         let pending = await RemoteSaveRecoveryStore.shared.allRecords(forEndpointKey: endpointKey)
         for record in pending {
-            await SFTPPathOperationGate.shared.withLock(endpointKey: endpointKey, targetPath: record.targetPath) {
+            await SFTPPathOperationGate.shared.withLock(targetPath: record.targetPath) {
                 do {
                     try await recoverInterruptedSFTPSwapLocked(
                         endpointKey: endpointKey,
@@ -1323,7 +1581,7 @@ final class RemoteFileEditCenter {
                 } catch let conflict as RemoteEditError {
                     if case .recoveryConflict(let targetPath, let backupPath, let stagedPath) = conflict {
                         RemoteFileEditCenter.shared.recordRecoveryConflict(
-                            endpointDisplayName: endpoint.displayName,
+                            endpointDisplayName: displayName,
                             endpointKey: endpointKey,
                             targetPath: targetPath,
                             backupPath: backupPath,
@@ -1342,7 +1600,7 @@ final class RemoteFileEditCenter {
         // or failed recovery. Never touch actively uploading files or files owned by a swap record.
         let orphanedTemps = await RemoteStagedTempStore.shared.orphanedRecords(forEndpointKey: endpointKey)
         for orphan in orphanedTemps {
-            await SFTPPathOperationGate.shared.withLock(endpointKey: endpointKey, targetPath: orphan.targetPath) {
+            await SFTPPathOperationGate.shared.withLock(targetPath: orphan.targetPath) {
                 guard await RemoteStagedTempStore.shared.isOrphaned(endpointKey: endpointKey, tempPath: orphan.tempPath) else {
                     return
                 }
@@ -1443,6 +1701,8 @@ final class RemoteFileEditCenter {
     /// Inspects `targetPath` via `lstat`, refusing directories (even when `forceOverwrite == true`),
     /// refusing unexpected symlinks (so a rename never replaces a symlink with a regular file),
     /// and enforcing `expectedFingerprint` when `!forceOverwrite`.
+    /// An owner that differs from the one seen at open is refused even when `forceOverwrite`
+    /// is set: it means another file now sits at the path, not a newer revision of this one.
     private static func validateSFTPTarget(
         _ targetPath: String,
         on sftp: SFTPClient,
@@ -1483,6 +1743,10 @@ final class RemoteFileEditCenter {
                     reason: String(localized: "Couldn't confirm that the remote path is a regular file before saving; the existing entry was left untouched.", comment: "File editor unconfirmed file type error")
                 )
             }
+            if let identity = expectedFingerprint?.identity,
+               !identity.matches(path: targetPath, currentOwnership: sftpOwnership(of: attrs)) {
+                throw RemoteEditError.targetChanged(fileName: FileTransferLogic.lastComponent(of: targetPath))
+            }
             if !forceOverwrite, let expectedFingerprint {
                 let current = RemoteFileFingerprint(
                     size: attrs.size ?? 0,
@@ -1507,9 +1771,14 @@ final class RemoteFileEditCenter {
     ) async throws -> RemoteFileFingerprint {
         let targetPath = try await resolveSFTPTargetPath(remotePath, sftp: sftp, requireConfirmedRegularType: true)
 
+        // Save only to the file bound at open, even when overwriting a conflict.
+        let identity = expectedFingerprint?.identity
+        if let identity, !RemoteEditPathIdentity.matches(identity.resolvedPath, targetPath) {
+            throw RemoteEditError.targetChanged(fileName: FileTransferLogic.lastComponent(of: remotePath))
+        }
+
         // 1. Recover any previously interrupted swap and run fast pre-upload validation under the path gate.
         let initialAttrs: SFTPFileAttributes? = try await SFTPPathOperationGate.shared.withLock(
-            endpointKey: endpointKey,
             targetPath: targetPath
         ) {
             try await recoverInterruptedSFTPSwapLocked(endpointKey: endpointKey, targetPath: targetPath, sftp: sftp)
@@ -1600,6 +1869,16 @@ final class RemoteFileEditCenter {
             privateMode.permissions = 0o600
             try await tempFile.setAttributes(privateMode)
 
+            // The new file's owner is the account this save runs as. Read it from our handle,
+            // before any chown, so no one can spoof it by swapping the temp path.
+            let createdAttrs = try await tempFile.readHandleAttributes()
+            if createdAttrs.uidgid?.userId == 0 {
+                if identity == nil, !RemoteEditPathIdentity.matches(remotePath, targetPath) {
+                    throw RemoteEditError.targetChanged(fileName: FileTransferLogic.lastComponent(of: remotePath))
+                }
+                try await verifySFTPParentPinnedForRoot(targetPath, sftp: sftp)
+            }
+
             if replacingInitial, let uidgid = initialAttrs?.uidgid {
                 var ownerAttrs = SFTPFileAttributes()
                 ownerAttrs.uidgid = uidgid
@@ -1655,7 +1934,7 @@ final class RemoteFileEditCenter {
         } catch {
             try? await tempFile.close()
             await cleanupUncommittedTempPath(endpointKey: endpointKey, tempPath: tempPath, on: sftp)
-            if error is CancellationError { throw error }
+            if error is CancellationError || error is RemoteEditError { throw error }
             throw SFTPError.from(sftpError: error, path: targetPath)
         }
 
@@ -1663,7 +1942,6 @@ final class RemoteFileEditCenter {
         //    close, journal persistence, and swap under the path gate so no concurrent reader or
         //    reconnect sweep can observe or delete tempPath mid-commit.
         return try await SFTPPathOperationGate.shared.withLock(
-            endpointKey: endpointKey,
             targetPath: targetPath
         ) {
             // Everything before the swap journal is inside one cleanup scope so ANY error
@@ -1781,7 +2059,8 @@ final class RemoteFileEditCenter {
                 }
                 stagedFingerprint = RemoteFileFingerprint(
                     size: verifiedAttrs.size ?? UInt64(data.count),
-                    modified: verifiedAttrs.accessModificationTime?.modificationTime
+                    modified: verifiedAttrs.accessModificationTime?.modificationTime,
+                    identity: RemoteFileIdentity(resolvedPath: targetPath, ownership: verifiedOwnership)
                 )
             } catch {
                 try? await tempFile.close()

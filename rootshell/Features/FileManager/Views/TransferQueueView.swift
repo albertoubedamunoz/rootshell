@@ -228,6 +228,8 @@ private struct TransferJobRow: View {
 
 /// Floating progress over the terminal while the file manager is hidden.
 struct TransferPill: View {
+    /// Opens on the file list, where transfers and edit problems are listed.
+    let manager: FileManagerModel?
     let onOpen: () -> Void
     private var center: FileTransferCenter { .shared }
     private var edits: RemoteFileEditCenter { .shared }
@@ -238,7 +240,10 @@ struct TransferPill: View {
 
     var body: some View {
         if center.hasActiveJobs || showsEditStatus {
-            Button(action: onOpen) {
+            Button {
+                manager?.showFiles()
+                onOpen()
+            } label: {
                 HStack(spacing: 8) {
                     if center.hasActiveJobs {
                         ZStack {

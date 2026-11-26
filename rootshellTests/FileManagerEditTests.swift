@@ -174,6 +174,95 @@ final class FileManagerEditTests: XCTestCase {
         XCTAssertFalse(s3A.differs(from: s3Same))
     }
 
+    // MARK: - SFTP Edit Binding
+
+    func testIdentityRefusesRedirectedPathOrChangedOwner() {
+        let alice = SFTPOwnership(uid: 1000, gid: 1000)
+        let root = SFTPOwnership(uid: 0, gid: 0)
+        let identity = RemoteFileIdentity(resolvedPath: "/home/alice/app.conf", ownership: alice)
+
+        XCTAssertTrue(identity.matches(path: "/home/alice/app.conf", currentOwnership: alice))
+        XCTAssertFalse(identity.matches(path: "/etc/shadow", currentOwnership: alice))
+        // A hard link or replacement with the same path but another owner is not the opened file.
+        XCTAssertFalse(identity.matches(path: "/home/alice/app.conf", currentOwnership: root))
+        XCTAssertFalse(identity.matches(path: "/home/alice/app.conf", currentOwnership: nil))
+
+        let unowned = RemoteFileIdentity(resolvedPath: "/srv/a", ownership: nil)
+        XCTAssertTrue(unowned.matches(path: "/srv/a", currentOwnership: root))
+        XCTAssertFalse(unowned.matches(path: "/srv/b", currentOwnership: root))
+    }
+
+    func testIdentityComparesPathBytesNotUnicodeEquivalence() {
+        let alice = SFTPOwnership(uid: 1000, gid: 1000)
+        let composed = RemoteFileIdentity(resolvedPath: "/srv/caf\u{00E9}", ownership: alice)
+        XCTAssertTrue(composed.matches(path: "/srv/caf\u{00E9}", currentOwnership: alice))
+        XCTAssertFalse(composed.matches(path: "/srv/cafe\u{0301}", currentOwnership: alice))
+    }
+
+    func testIdentityDoesNotAffectRevisionComparison() {
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let bound = RemoteFileFingerprint(
+            size: 10,
+            modified: t0,
+            identity: RemoteFileIdentity(resolvedPath: "/a", ownership: SFTPOwnership(uid: 1, gid: 1))
+        )
+        XCTAssertFalse(bound.differs(from: RemoteFileFingerprint(size: 10, modified: t0)))
+    }
+
+    func testFingerprintDecodesWithoutIdentity() throws {
+        let json = Data(#"{"size":5,"precision":"wholeSecond"}"#.utf8)
+        let decoded = try JSONDecoder().decode(RemoteFileFingerprint.self, from: json)
+        XCTAssertNil(decoded.identity)
+        XCTAssertEqual(decoded.size, 5)
+    }
+
+    func testPrivilegedDirectoryChainStopsAtParent() {
+        XCTAssertEqual(SFTPPrivilegedTarget.directoryChain(for: "/etc/hosts"), ["/", "/etc"])
+        XCTAssertEqual(
+            SFTPPrivilegedTarget.directoryChain(for: "/home/alice/proj/x.conf"),
+            ["/", "/home", "/home/alice", "/home/alice/proj"]
+        )
+        XCTAssertEqual(SFTPPrivilegedTarget.directoryChain(for: "/x"), ["/"])
+        XCTAssertNil(SFTPPrivilegedTarget.directoryChain(for: "relative/x"))
+        XCTAssertNil(SFTPPrivilegedTarget.directoryChain(for: "/"))
+    }
+
+    func testPrivilegedDirectoryChainSplitsOnSlashBytes() {
+        // A combining mark after "/" forms one Character with it; the chain must still
+        // include /home/alice, which the server traverses.
+        let chain = SFTPPrivilegedTarget.directoryChain(for: "/home/alice/\u{0301}sub/app.conf")
+        XCTAssertEqual(chain?.count, 4)
+        XCTAssertTrue(chain.map { RemoteEditPathIdentity.matches($0[2], "/home/alice") } ?? false)
+        XCTAssertTrue(chain.map { RemoteEditPathIdentity.matches($0[3], "/home/alice/\u{0301}sub") } ?? false)
+
+        let leading = SFTPPrivilegedTarget.directoryChain(for: "/\u{0301}dir/app.conf")
+        XCTAssertEqual(leading?.count, 2)
+        XCTAssertTrue(leading.map { RemoteEditPathIdentity.matches($0[1], "/\u{0301}dir") } ?? false)
+    }
+
+    func testPrivilegedDirectoryChainRejectsDotSegments() {
+        XCTAssertNil(SFTPPrivilegedTarget.directoryChain(for: "/home/../etc/shadow"))
+        XCTAssertNil(SFTPPrivilegedTarget.directoryChain(for: "/home/./alice/x"))
+        XCTAssertNil(SFTPPrivilegedTarget.directoryChain(for: "/home/a\u{0}b/x"))
+    }
+
+    func testPrivilegedPinningRequiresRootOwnedUnsharedDirectories() {
+        // Root-owned 0755: pinned.
+        XCTAssertTrue(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o040755, directoryUID: 0, childUID: 1000))
+        // Owned by another user, even without group/other write: they can chmod it.
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o040755, directoryUID: 1000, childUID: 0))
+        // Group- or world-writable without sticky: anyone allowed can rename entries.
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o040775, directoryUID: 0, childUID: 0))
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o040777, directoryUID: 0, childUID: 0))
+        // Sticky /tmp pins root-owned entries only.
+        XCTAssertTrue(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o041777, directoryUID: 0, childUID: 0))
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o041777, directoryUID: 0, childUID: 1000))
+        // Missing attributes never count as pinned.
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: nil, directoryUID: 0, childUID: 0))
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o040755, directoryUID: nil, childUID: 0))
+        XCTAssertFalse(SFTPPrivilegedTarget.pinsEntry(directoryMode: 0o041777, directoryUID: 0, childUID: nil))
+    }
+
     // MARK: - Staging Directory Cleanup Safety
 
     func testStagingCleanupOnlyAllowsDirectChildrenOfStagingRoot() {
@@ -423,6 +512,26 @@ final class FileManagerEditTests: XCTestCase {
         XCTAssertEqual(viaBastionA, sameCaseInsensitive)
     }
 
+    func testEditPrincipalMatchesHostAliasesButNotOtherAccountsOrSudo() {
+        typealias Login = FileEditRecoveryKey.Login
+        let byName = Login(host: "Server.lan", port: 22, username: "deploy", jumpHops: [], cachedIP: "10.0.0.5")
+        let byIP = Login(host: "10.0.0.5", port: 22, username: "deploy", jumpHops: [])
+        let otherUser = Login(host: "10.0.0.5", port: 22, username: "admin", jumpHops: [])
+        let viaBastion = Login(
+            host: "10.0.0.5", port: 22, username: "deploy",
+            jumpHops: [.init(host: "bastion", port: 22, username: "ops")]
+        )
+
+        let user = EditPrincipal(login: byName, isSudo: false)
+        XCTAssertTrue(user.reachesSameAccount(as: EditPrincipal(login: byIP, isSudo: false)))
+        XCTAssertNotEqual(user.key, EditPrincipal(login: byIP, isSudo: false).key)
+        XCTAssertFalse(user.reachesSameAccount(as: EditPrincipal(login: byIP, isSudo: true)))
+        XCTAssertFalse(user.reachesSameAccount(as: EditPrincipal(login: otherUser, isSudo: false)))
+        XCTAssertFalse(user.reachesSameAccount(as: EditPrincipal(login: viaBastion, isSudo: false)))
+        XCTAssertFalse(EditPrincipal(key: "storage-a").reachesSameAccount(as: EditPrincipal(key: "storage-b")))
+        XCTAssertTrue(EditPrincipal.local.reachesSameAccount(as: .local))
+    }
+
     func testRecoveryStorePersistsAndClearsSwapRecords() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -502,13 +611,13 @@ final class FileManagerEditTests: XCTestCase {
         }
         let trace = Trace()
 
-        async let first: Void = gate.withLock(endpointKey: "ep", targetPath: "/a") {
+        async let first: Void = gate.withLock(targetPath: "/a") {
             await trace.append("enter-1")
             try? await Task.sleep(for: .milliseconds(40))
             await trace.append("exit-1")
         }
         try? await Task.sleep(for: .milliseconds(10))
-        async let second: Void = gate.withLock(endpointKey: "ep", targetPath: "/a") {
+        async let second: Void = gate.withLock(targetPath: "/a") {
             await trace.append("enter-2")
             await trace.append("exit-2")
         }
